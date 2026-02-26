@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeuGmail - Gestão de Emails</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>MeuGmail</h1>
+            <div class="subtitle">Gestão de Emails</div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-item active" data-page="emails">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <span>Todos os Emails</span>
+            </div>
+
+            <div class="account-selector" id="account-selector" style="display:none;">
+                <select id="account-select" onchange="switchAccount(this.value)">
+                    <option value="">Todas as Contas</option>
+                </select>
+            </div>
+
+            <div class="sidebar-section-title collapsible" data-target="sidebar-labels" onclick="toggleSidebarSection(this)">
+                <span>Pastas</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="sidebar-section-content" id="sidebar-labels"></div>
+
+            <div class="sidebar-section-title collapsible" data-target="sidebar-senders" onclick="toggleSidebarSection(this)">
+                <span>Remetentes</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="sidebar-section-content" id="sidebar-senders"></div>
+
+            <div class="sidebar-divider"></div>
+
+            <div class="nav-item" data-page="stats">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="20" x2="18" y2="10"/>
+                    <line x1="12" y1="20" x2="12" y2="4"/>
+                    <line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+                <span>Estatísticas</span>
+            </div>
+            <div class="nav-item" data-page="analysis">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <span>Análise</span>
+            </div>
+            <div class="nav-item" data-page="agent">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>Agente IA</span>
+            </div>
+
+            <div class="sidebar-divider"></div>
+
+            <div class="nav-item" data-page="settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                <span>Configurações</span>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="auth-status">
+                <span class="auth-dot" id="auth-dot"></span>
+                <span class="auth-email" id="auth-email">Desconectado</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Toast -->
+        <div id="toast-container" class="toast-container"></div>
+
+        <!-- Sync background bar -->
+        <div class="sync-bar" id="sync-bar">
+            <div class="sync-bar-content">
+                <span class="sync-bar-text" id="sync-bar-text">Sincronizando...</span>
+                <div class="sync-bar-progress">
+                    <div class="sync-bar-fill" id="sync-bar-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: Emails -->
+        <div id="page-emails" class="page active">
+            <div class="header-bar">
+                <h2>Emails</h2>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="btn-connect" onclick="connectGmail()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                            <polyline points="10 17 15 12 10 7"/>
+                            <line x1="15" y1="12" x2="3" y2="12"/>
+                        </svg>
+                        Conectar Gmail
+                    </button>
+                    <button class="btn btn-primary" id="btn-sync" style="display:none" onclick="syncEmails()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <polyline points="1 20 1 14 7 14"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                        Sincronizar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card">
+                <div class="filters-bar">
+                    <div class="filter-group">
+                        <label>Remetente</label>
+                        <input type="text" id="filter-sender" placeholder="Email ou nome">
+                    </div>
+                    <div class="filter-group">
+                        <label>Assunto</label>
+                        <input type="text" id="filter-subject" placeholder="Buscar no assunto">
+                    </div>
+                    <div class="filter-group">
+                        <label>Data de</label>
+                        <input type="date" id="filter-date-from">
+                    </div>
+                    <div class="filter-group">
+                        <label>Data até</label>
+                        <input type="date" id="filter-date-to">
+                    </div>
+                    <div class="filter-group">
+                        <label>Label</label>
+                        <select id="filter-label">
+                            <option value="">Todos</option>
+                            <option value="INBOX">INBOX</option>
+                            <option value="SENT">SENT</option>
+                            <option value="SPAM">SPAM</option>
+                            <option value="TRASH">TRASH</option>
+                            <option value="CATEGORY_PROMOTIONS">PROMOTIONS</option>
+                            <option value="CATEGORY_SOCIAL">SOCIAL</option>
+                            <option value="CATEGORY_UPDATES">UPDATES</option>
+                            <option value="CATEGORY_FORUMS">FORUMS</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Anexos</label>
+                        <select id="filter-attachments">
+                            <option value="">Todos</option>
+                            <option value="true">Com anexos</option>
+                            <option value="false">Sem anexos</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Leitura</label>
+                        <select id="filter-read">
+                            <option value="">Todos</option>
+                            <option value="true">Lidos</option>
+                            <option value="false">Não lidos</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Tamanho min (KB)</label>
+                        <input type="number" id="filter-size" placeholder="Ex: 1024" min="0">
+                    </div>
+                    <div class="filter-actions">
+                        <button class="btn btn-primary" id="btn-apply-filters">Filtrar</button>
+                        <button class="btn btn-outline" id="btn-clear-filters">Limpar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selection bar -->
+            <div class="selection-bar" id="selection-bar">
+                <span class="selection-info" id="selection-count">0 selecionado(s)</span>
+                <div>
+                    <button class="btn btn-outline" onclick="clearSelection()">Limpar Seleção</button>
+                    <button class="btn btn-danger" id="btn-delete-selected" onclick="confirmDelete()" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        Deletar Selecionados
+                    </button>
+                </div>
+            </div>
+
+            <!-- Empty state -->
+            <div id="empty-state" class="empty-state" style="display:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <h3>Nenhum email encontrado</h3>
+                <p>Conecte seu Gmail e sincronize para ver seus emails aqui.</p>
+            </div>
+
+            <!-- Table -->
+            <div class="card" id="table-container" style="display:none; padding:0; overflow:hidden;">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:40px"><input type="checkbox" id="select-all"></th>
+                                <th class="sortable" data-sort="sender" onclick="sortBy('sender')">Remetente</th>
+                                <th class="sortable" data-sort="subject" onclick="sortBy('subject')">Assunto</th>
+                                <th>Preview</th>
+                                <th>Labels</th>
+                                <th class="sortable sort-desc" data-sort="size_estimate" onclick="sortBy('size_estimate')">Tamanho</th>
+                                <th style="width:40px">📎</th>
+                                <th class="sortable sort-desc" data-sort="date" onclick="sortBy('date')">Data</th>
+                            </tr>
+                        </thead>
+                        <tbody id="emails-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <span class="pagination-info" id="pagination-info"></span>
+                    <div class="pagination-controls" id="pagination-controls"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: Stats -->
+        <div id="page-stats" class="page">
+            <div class="header-bar">
+                <h2>Estatísticas</h2>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-total">-</div>
+                    <div class="stat-label">Total de Emails</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-size">-</div>
+                    <div class="stat-label">Espaço Usado</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-unread">-</div>
+                    <div class="stat-label">Não Lidos</div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="card">
+                    <h3 style="margin-bottom: 16px; font-size: 15px;">Top Remetentes</h3>
+                    <ul class="top-senders-list" id="top-senders-list">
+                        <li><span style="color: var(--text-muted)">Sincronize seus emails para ver estatísticas</span></li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3 style="margin-bottom: 16px; font-size: 15px;">Top Domínios</h3>
+                    <ul class="top-senders-list" id="top-domains-list">
+                        <li><span style="color: var(--text-muted)">Sincronize seus emails para ver estatísticas</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: Analysis -->
+        <div id="page-analysis" class="page">
+            <div class="header-bar">
+                <h2>Análise de Emails</h2>
+            </div>
+
+            <!-- Summary cards -->
+            <div class="analysis-summary" id="analysis-summary">
+                <div class="analysis-stat-card">
+                    <div class="analysis-stat-icon" style="background: #fce4ec; color: #c62828;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    </div>
+                    <div>
+                        <div class="analysis-stat-value" id="summary-automated">-</div>
+                        <div class="analysis-stat-label">Emails Automatizados</div>
+                    </div>
+                </div>
+                <div class="analysis-stat-card">
+                    <div class="analysis-stat-icon" style="background: #e3f2fd; color: #1565c0;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    </div>
+                    <div>
+                        <div class="analysis-stat-value" id="summary-domains">-</div>
+                        <div class="analysis-stat-label">Domínios Ativos</div>
+                    </div>
+                </div>
+                <div class="analysis-stat-card">
+                    <div class="analysis-stat-icon" style="background: #fff3e0; color: #e65100;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>
+                    </div>
+                    <div>
+                        <div class="analysis-stat-value" id="summary-fuzzy">-</div>
+                        <div class="analysis-stat-label">Pares Similares</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two-column layout -->
+            <div class="analysis-grid">
+                <div class="card analysis-card">
+                    <div class="analysis-card-header">
+                        <div>
+                            <h3>Emails Automatizados</h3>
+                            <p>Remetentes noreply, notifications, mailer-daemon</p>
+                        </div>
+                        <span class="analysis-badge badge-red" id="noreply-total">0</span>
+                    </div>
+                    <ul class="analysis-list" id="noreply-list"></ul>
+                </div>
+
+                <div class="card analysis-card">
+                    <div class="analysis-card-header">
+                        <div>
+                            <h3>Agrupamento por Domínio</h3>
+                            <p>Domínios que mais enviam, com remetentes agrupados</p>
+                        </div>
+                    </div>
+                    <div id="domain-groups"></div>
+                </div>
+            </div>
+
+            <div class="card analysis-card">
+                <div class="analysis-card-header">
+                    <div>
+                        <h3>Remetentes Similares</h3>
+                        <p>Nomes parecidos no mesmo domínio — possíveis variações do mesmo remetente</p>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="fuzzy-table">
+                        <thead>
+                            <tr>
+                                <th>Remetente A</th>
+                                <th style="width:70px; text-align:right">Qtd</th>
+                                <th>Remetente B</th>
+                                <th style="width:70px; text-align:right">Qtd</th>
+                                <th style="width:140px">Similaridade</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fuzzy-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: Agent -->
+        <div id="page-agent" class="page">
+            <div class="chat-layout">
+                <!-- Sessions sidebar -->
+                <div class="chat-sessions-panel">
+                    <div class="chat-sessions-header">
+                        <span>Conversas</span>
+                        <button class="btn btn-sm btn-primary" onclick="clearChat()" title="Nova conversa">+</button>
+                    </div>
+                    <div class="chat-sessions-list" id="chat-sessions-list">
+                        <div class="sessions-empty">Nenhuma conversa salva</div>
+                    </div>
+                </div>
+
+            <div class="chat-container">
+                <div class="chat-header">
+                    <h2>Agente IA</h2>
+                    <button class="btn btn-outline" onclick="clearChat()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                            <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                        </svg>
+                        Nova conversa
+                    </button>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="chat-welcome" id="chat-welcome">
+                        <div class="chat-welcome-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                        </div>
+                        <h3>Pergunte sobre seus emails</h3>
+                        <p>O agente usa IA para buscar nos seus ~130k emails sincronizados</p>
+                        <div class="chat-suggestions">
+                            <button class="chat-suggestion" onclick="useSuggestion(this)">Quais emails recebi da Amazon nos últimos 3 meses?</button>
+                            <button class="chat-suggestion" onclick="useSuggestion(this)">Busque emails sobre nota fiscal de janeiro 2024</button>
+                            <button class="chat-suggestion" onclick="useSuggestion(this)">Quem são os remetentes que mais me enviam emails?</button>
+                            <button class="chat-suggestion" onclick="useSuggestion(this)">Encontre emails com anexos PDF que recebi esta semana</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <textarea id="chat-input" placeholder="Pergunte sobre seus emails..." rows="1" onkeydown="handleChatKeydown(event)"></textarea>
+                    <button class="btn btn-primary chat-send-btn" id="chat-send-btn" onclick="sendChatMessage()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            </div><!-- /chat-layout -->
+        </div>
+
+        <!-- Page: Settings -->
+        <div id="page-settings" class="page">
+            <div class="header-bar">
+                <h2>Configurações</h2>
+            </div>
+
+            <!-- AI Config Card -->
+            <div class="card">
+                <h3 class="card-title">Configuração da IA (OpenRouter)</h3>
+                <div class="config-form">
+                    <div class="config-field">
+                        <label>API Key</label>
+                        <div class="config-input-wrapper">
+                            <input type="password" id="config-api-key" class="config-input" placeholder="sk-or-...">
+                            <button class="btn btn-sm btn-outline" onclick="toggleApiKeyVisibility()">
+                                <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
+                        <span class="config-hint">Obtenha sua chave em <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></span>
+                    </div>
+                    <div class="config-field">
+                        <label>Modelo</label>
+                        <input type="text" id="config-model" class="config-input" readonly placeholder="Selecione um modelo abaixo">
+                    </div>
+                    <div class="config-field" style="max-width:100%;">
+                        <label>System Prompt <button class="btn-link" onclick="resetSystemPrompt()">Restaurar padrão</button></label>
+                        <textarea id="config-system-prompt" class="config-textarea" rows="12" placeholder="Instruções do sistema para o agente IA..."></textarea>
+                        <span class="config-hint">Define o comportamento e regras do agente. Deixe vazio para usar o prompt padrão.</span>
+                    </div>
+                    <div class="config-field">
+                        <button class="btn btn-primary" onclick="saveAiConfig()">Salvar Configuração</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Models Browser Card -->
+            <div class="card">
+                <div class="card-title-row">
+                    <h3 class="card-title">Modelos Disponíveis</h3>
+                    <button class="btn btn-outline" id="btn-load-models" onclick="loadAiModels()">Buscar Modelos</button>
+                </div>
+                <div id="models-container" style="display:none;">
+                    <div class="models-filters">
+                        <div class="filter-group">
+                            <label>Buscar</label>
+                            <input type="text" id="models-search" placeholder="Nome, ID ou provedor" oninput="filterModels()">
+                        </div>
+                        <div class="filter-group">
+                            <label>Suporta Tools</label>
+                            <select id="models-tools-filter" onchange="filterModels()">
+                                <option value="">Todos</option>
+                                <option value="true">Sim</option>
+                                <option value="false">Não</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="models-info" id="models-info"></div>
+                    <div class="table-container">
+                        <table class="models-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:60px"></th>
+                                    <th class="sortable-model" onclick="sortModels('name')">Nome</th>
+                                    <th class="sortable-model" onclick="sortModels('provider')">Provedor</th>
+                                    <th class="sortable-model" onclick="sortModels('context_length')">Contexto</th>
+                                    <th class="sortable-model" onclick="sortModels('pricing_prompt')">$/Prompt</th>
+                                    <th class="sortable-model" onclick="sortModels('pricing_completion')">$/Completion</th>
+                                    <th class="sortable-model" onclick="sortModels('supports_tools')">Tools</th>
+                                    <th class="sortable-model" onclick="sortModels('created')">Criado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="models-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Accounts Card (placeholder for Feature 1) -->
+            <div class="card" id="accounts-card">
+                <div class="card-title-row">
+                    <h3 class="card-title">Contas de Email</h3>
+                    <button class="btn btn-primary" onclick="showAddAccountModal()">+ Adicionar Conta</button>
+                </div>
+                <div id="accounts-list"></div>
+            </div>
+        </div>
+
+        <!-- Page: Email Detail -->
+        <div id="page-email-detail" class="page">
+            <div id="email-detail-content"></div>
+        </div>
+
+        <!-- Page: Query Results -->
+        <div id="page-query-results" class="page">
+            <div class="query-results-header">
+                <button class="btn btn-outline" onclick="history.back()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                    Voltar
+                </button>
+                <div class="query-results-title-area">
+                    <h2 id="query-title">Carregando...</h2>
+                    <p id="query-description" class="text-muted"></p>
+                </div>
+            </div>
+            <div id="query-sql-preview" class="query-sql-block" style="display:none">
+                <button class="btn btn-outline btn-sm" onclick="this.parentElement.querySelector('.query-sql-code').classList.toggle('open')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                        <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                    </svg>
+                    Ver SQL
+                </button>
+                <pre class="query-sql-code"></pre>
+            </div>
+            <div id="query-results-info" class="pagination-info"></div>
+            <div class="card" id="query-results-card" style="display:none; padding:0; overflow:hidden;">
+                <div class="table-container">
+                    <table>
+                        <thead id="query-results-thead"></thead>
+                        <tbody id="query-results-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <span class="pagination-info" id="query-pagination-info"></span>
+                    <div class="pagination-controls" id="query-pagination-controls"></div>
+                </div>
+            </div>
+            <div id="query-results-empty" class="empty-state" style="display:none;">
+                <h3>Nenhum resultado</h3>
+                <p>A consulta não retornou dados.</p>
+            </div>
+            <div id="query-results-loading" class="empty-state">
+                <div class="spinner-dark"></div>
+                <p style="margin-top: 12px;">Executando consulta...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Delete confirmation modal -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal">
+            <h3>Confirmar Exclusão</h3>
+            <p>Tem certeza que deseja mover <strong><span id="delete-count">0</span> email(s)</strong> para a lixeira do Gmail? Esta ação pode ser revertida na lixeira do Gmail em até 30 dias.</p>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeDeleteModal()">Cancelar</button>
+                <button class="btn btn-danger" onclick="executeDelete()">Deletar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Account Modal -->
+    <div class="modal-overlay" id="account-modal">
+        <div class="modal modal-wide">
+            <h3 id="account-modal-title">Adicionar Conta</h3>
+            <input type="hidden" id="account-edit-id" value="">
+            <div class="modal-field">
+                <label>Nome da Conta</label>
+                <input type="text" id="account-name" placeholder="Ex: Email Pessoal">
+            </div>
+            <div class="modal-field">
+                <label>Provedor</label>
+                <select id="account-provider" onchange="toggleImapFields()">
+                    <option value="gmail">Gmail (OAuth)</option>
+                    <option value="imap">IMAP</option>
+                </select>
+            </div>
+            <div class="modal-field">
+                <label>Email</label>
+                <input type="email" id="account-email" placeholder="usuario@exemplo.com">
+            </div>
+            <div class="imap-fields" id="imap-fields">
+                <div class="imap-row">
+                    <div class="modal-field">
+                        <label>Host IMAP</label>
+                        <input type="text" id="account-imap-host" placeholder="imap.exemplo.com">
+                    </div>
+                    <div class="modal-field">
+                        <label>Porta</label>
+                        <input type="number" id="account-imap-port" value="993">
+                    </div>
+                </div>
+                <div class="modal-field">
+                    <label>Usuário</label>
+                    <input type="text" id="account-imap-username" placeholder="usuario@exemplo.com">
+                </div>
+                <div class="modal-field">
+                    <label>Senha</label>
+                    <input type="password" id="account-imap-password" placeholder="Senha do email">
+                </div>
+                <div class="checkbox-field">
+                    <input type="checkbox" id="account-imap-ssl" checked>
+                    <label for="account-imap-ssl">Usar SSL/TLS</label>
+                </div>
+                <div class="modal-field" style="margin-top:12px">
+                    <button class="btn btn-outline" onclick="testNewConnection()">Testar Conexão</button>
+                    <span id="test-connection-result" style="font-size:12px;margin-left:8px;"></span>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top:20px">
+                <button class="btn btn-outline" onclick="closeAccountModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveAccount()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

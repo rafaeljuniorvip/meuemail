@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id VARCHAR(50) PRIMARY KEY,
+    title VARCHAR(200) NOT NULL DEFAULT 'Conversa',
+    messages JSONB NOT NULL DEFAULT '[]',
+    tools_map JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

@@ -1,0 +1,40 @@
+version: "3.8"
+
+services:
+  meuemail:
+    image: ghcr.io/rafaeljuniorvip/meuemail:latest
+    networks:
+      - minha_rede
+      - default
+    environment:
+      - DATABASE_URL=postgresql://meuemail:SENHA_SEGURA@meuemail-db:5432/meuemail
+      - OPENROUTER_API_KEY=
+      - OPENROUTER_MODEL=anthropic/claude-sonnet-4
+      - IMAP_ENCRYPTION_KEY=
+    deploy:
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.meuemail.rule=Host(`meuemail.falavip.com.br`)"
+        - "traefik.http.routers.meuemail.entrypoints=websecure"
+        - "traefik.http.routers.meuemail.tls.certresolver=letsencrypt"
+        - "traefik.http.services.meuemail.loadbalancer.server.port=8467"
+        - "traefik.docker.network=minha_rede"
+
+  meuemail-db:
+    image: postgres:16-alpine
+    networks:
+      - default
+    environment:
+      - POSTGRES_DB=meuemail
+      - POSTGRES_USER=meuemail
+      - POSTGRES_PASSWORD=SENHA_SEGURA
+    volumes:
+      - meuemail-pgdata:/var/lib/postgresql/data
+
+volumes:
+  meuemail-pgdata:
+
+networks:
+  minha_rede:
+    external: true

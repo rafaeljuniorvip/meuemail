@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+.git/
+.gitignore
+.claude/
+*.md
+token.json
+credentials.json
+stack-docker.yml
+.github/
