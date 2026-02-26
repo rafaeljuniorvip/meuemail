@@ -16,6 +16,13 @@ services:
       - APP_URL=${APP_URL}
     deploy:
       replicas: 1
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.meuemail.rule=Host(`meuemail.falavip.com.br`)"
@@ -28,6 +35,14 @@ services:
     image: postgres:16-alpine
     networks:
       - default
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
