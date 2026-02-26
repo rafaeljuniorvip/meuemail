@@ -30,12 +30,18 @@ class SearchService:
             conditions.append("account_id = :account_id")
             params["account_id"] = account_id
 
-    def search_body_fulltext(self, query: str, limit: int = 20, account_id: int = None) -> list[dict]:
+    def _user_filter(self, conditions: list, params: dict, user_id: int = None):
+        if user_id is not None:
+            conditions.append("user_id = :user_id")
+            params["user_id"] = user_id
+
+    def search_body_fulltext(self, query: str, limit: int = 20, account_id: int = None, user_id: int = None) -> list[dict]:
         db = self._get_db()
         try:
             conditions = ["body_tsv @@ plainto_tsquery('portuguese', :query)"]
             params = {"query": query, "limit": limit}
             self._account_filter(conditions, params, account_id)
+            self._user_filter(conditions, params, user_id)
             where = " AND ".join(conditions)
             sql = text(f"""
                 SELECT {self._email_select()},
@@ -51,12 +57,13 @@ class SearchService:
         finally:
             db.close()
 
-    def search_subject_keyword(self, keyword: str, limit: int = 20, account_id: int = None) -> list[dict]:
+    def search_subject_keyword(self, keyword: str, limit: int = 20, account_id: int = None, user_id: int = None) -> list[dict]:
         db = self._get_db()
         try:
             conditions = ["subject ILIKE :pattern"]
             params = {"pattern": f"%{keyword}%", "limit": limit}
             self._account_filter(conditions, params, account_id)
+            self._user_filter(conditions, params, user_id)
             where = " AND ".join(conditions)
             sql = text(f"""
                 SELECT {self._email_select()}
@@ -70,12 +77,13 @@ class SearchService:
         finally:
             db.close()
 
-    def search_sender(self, sender: str, limit: int = 20, account_id: int = None) -> list[dict]:
+    def search_sender(self, sender: str, limit: int = 20, account_id: int = None, user_id: int = None) -> list[dict]:
         db = self._get_db()
         try:
             conditions = ["(sender ILIKE :pattern OR sender_email ILIKE :pattern)"]
             params = {"pattern": f"%{sender}%", "limit": limit}
             self._account_filter(conditions, params, account_id)
+            self._user_filter(conditions, params, user_id)
             where = " AND ".join(conditions)
             sql = text(f"""
                 SELECT {self._email_select()}
@@ -89,12 +97,13 @@ class SearchService:
         finally:
             db.close()
 
-    def search_sender_exact(self, sender_email: str, limit: int = 20, account_id: int = None) -> list[dict]:
+    def search_sender_exact(self, sender_email: str, limit: int = 20, account_id: int = None, user_id: int = None) -> list[dict]:
         db = self._get_db()
         try:
             conditions = ["LOWER(sender_email) = LOWER(:email)"]
             params = {"email": sender_email, "limit": limit}
             self._account_filter(conditions, params, account_id)
+            self._user_filter(conditions, params, user_id)
             where = " AND ".join(conditions)
             sql = text(f"""
                 SELECT {self._email_select()}
@@ -108,7 +117,7 @@ class SearchService:
         finally:
             db.close()
 
-    def search_date_range(self, date_from: str = None, date_to: str = None, limit: int = 20, account_id: int = None) -> list[dict]:
+    def search_date_range(self, date_from: str = None, date_to: str = None, limit: int = 20, account_id: int = None, user_id: int = None) -> list[dict]:
         db = self._get_db()
         try:
             conditions = []
@@ -120,6 +129,7 @@ class SearchService:
                 conditions.append("date <= :date_to::date + interval '1 day'")
                 params["date_to"] = date_to
             self._account_filter(conditions, params, account_id)
+            self._user_filter(conditions, params, user_id)
             where = "WHERE " + " AND ".join(conditions) if conditions else ""
             sql = text(f"""
                 SELECT {self._email_select()}
@@ -133,12 +143,13 @@ class SearchService:
         finally:
             db.close()
 
-    def search_by_label(self, label: str, limit: int = 20, account_id: int = None) -> list[dict]:
+    def search_by_label(self, label: str, limit: int = 20, account_id: int = None, user_id: int = None) -> list[dict]:
         db = self._get_db()
         try:
             conditions = [":label = ANY(labels)"]
             params = {"label": label, "limit": limit}
             self._account_filter(conditions, params, account_id)
+            self._user_filter(conditions, params, user_id)
             where = " AND ".join(conditions)
             sql = text(f"""
                 SELECT {self._email_select()}
@@ -152,7 +163,7 @@ class SearchService:
         finally:
             db.close()
 
-    def search_attachments(self, filename: str = None, has_attachments: bool = True, limit: int = 20, account_id: int = None) -> list[dict]:
+    def search_attachments(self, filename: str = None, has_attachments: bool = True, limit: int = 20, account_id: int = None, user_id: int = None) -> list[dict]:
         db = self._get_db()
         try:
             conditions = ["has_attachments = :has_att"]
@@ -161,6 +172,7 @@ class SearchService:
                 conditions.append("attachments::text ILIKE :filename_pattern")
                 params["filename_pattern"] = f"%{filename}%"
             self._account_filter(conditions, params, account_id)
+            self._user_filter(conditions, params, user_id)
             where = " AND ".join(conditions)
             sql = text(f"""
                 SELECT {self._email_select()}
@@ -174,12 +186,13 @@ class SearchService:
         finally:
             db.close()
 
-    def search_thread(self, thread_id: str, account_id: int = None) -> list[dict]:
+    def search_thread(self, thread_id: str, account_id: int = None, user_id: int = None) -> list[dict]:
         db = self._get_db()
         try:
             conditions = ["thread_id = :thread_id"]
             params = {"thread_id": thread_id}
             self._account_filter(conditions, params, account_id)
+            self._user_filter(conditions, params, user_id)
             where = " AND ".join(conditions)
             sql = text(f"""
                 SELECT {self._email_select()}
@@ -203,6 +216,7 @@ class SearchService:
         has_attachments: bool = None,
         limit: int = 20,
         account_id: int = None,
+        user_id: int = None,
     ) -> list[dict]:
         db = self._get_db()
         try:
@@ -230,6 +244,7 @@ class SearchService:
                 conditions.append("has_attachments = :has_att")
                 params["has_att"] = has_attachments
             self._account_filter(conditions, params, account_id)
+            self._user_filter(conditions, params, user_id)
             where = "WHERE " + " AND ".join(conditions) if conditions else ""
             sql = text(f"""
                 SELECT {self._email_select()}
@@ -243,17 +258,21 @@ class SearchService:
         finally:
             db.close()
 
-    def get_email_detail(self, gmail_id: str) -> dict | None:
+    def get_email_detail(self, gmail_id: str, user_id: int = None) -> dict | None:
         db = self._get_db()
         try:
-            sql = text("""
+            conditions = ["gmail_id = :gmail_id"]
+            params = {"gmail_id": gmail_id}
+            self._user_filter(conditions, params, user_id)
+            where = " AND ".join(conditions)
+            sql = text(f"""
                 SELECT gmail_id, thread_id, subject, sender, sender_email,
                        recipients, date, snippet, labels, size_estimate,
                        has_attachments, is_read, gmail_link, body, attachments
                 FROM emails
-                WHERE gmail_id = :gmail_id
+                WHERE {where}
             """)
-            row = db.execute(sql, {"gmail_id": gmail_id}).fetchone()
+            row = db.execute(sql, params).fetchone()
             if not row:
                 return None
             cols = [
@@ -265,12 +284,13 @@ class SearchService:
         finally:
             db.close()
 
-    def get_top_senders(self, limit: int = 20, account_id: int = None) -> list[dict]:
+    def get_top_senders(self, limit: int = 20, account_id: int = None, user_id: int = None) -> list[dict]:
         db = self._get_db()
         try:
             conditions = []
             params = {"limit": limit}
             self._account_filter(conditions, params, account_id)
+            self._user_filter(conditions, params, user_id)
             where = "WHERE " + " AND ".join(conditions) if conditions else ""
             sql = text(f"""
                 SELECT sender, sender_email,
@@ -299,12 +319,13 @@ class SearchService:
         finally:
             db.close()
 
-    def get_email_stats(self, account_id: int = None) -> dict:
+    def get_email_stats(self, account_id: int = None, user_id: int = None) -> dict:
         db = self._get_db()
         try:
             conditions = []
             params = {}
             self._account_filter(conditions, params, account_id)
+            self._user_filter(conditions, params, user_id)
             where = "WHERE " + " AND ".join(conditions) if conditions else ""
             sql = text(f"""
                 SELECT
@@ -376,10 +397,14 @@ class SearchService:
         finally:
             db.close()
 
-    def get_sender_summary(self, sender_email: str) -> dict:
+    def get_sender_summary(self, sender_email: str, user_id: int = None) -> dict:
         db = self._get_db()
         try:
-            sql = text("""
+            conditions = ["LOWER(sender_email) = LOWER(:email)"]
+            params = {"email": sender_email}
+            self._user_filter(conditions, params, user_id)
+            where = " AND ".join(conditions)
+            sql = text(f"""
                 SELECT
                     COUNT(*) as total_emails,
                     MIN(date) as first_email,
@@ -389,9 +414,9 @@ class SearchService:
                     COUNT(*) FILTER (WHERE NOT is_read) as unread,
                     array_agg(DISTINCT unnest_label) as labels_used
                 FROM emails, LATERAL unnest(labels) as unnest_label
-                WHERE LOWER(sender_email) = LOWER(:email)
+                WHERE {where}
             """)
-            row = db.execute(sql, {"email": sender_email}).fetchone()
+            row = db.execute(sql, params).fetchone()
             if not row or row[0] == 0:
                 return {"sender_email": sender_email, "total_emails": 0}
             return {

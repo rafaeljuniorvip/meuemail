@@ -199,9 +199,111 @@ body {
 }
 
 .sidebar-footer {
-    padding: 16px 20px;
+    padding: 12px 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     font-size: 12px;
+}
+
+/* User info in sidebar */
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    margin-bottom: 8px;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.user-details {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-email-display {
+    font-size: 11px;
+    color: var(--sidebar-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.btn-logout {
+    background: none;
+    border: none;
+    color: var(--sidebar-text);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-logout:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.1);
+}
+
+/* Users admin page */
+.user-avatar-small {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+}
+
+.user-role-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.user-role-badge.admin {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.user-role-badge.user {
+    background: #f5f5f5;
+    color: #666;
+}
+
+.user-status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.user-status-badge.active {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.user-status-badge.inactive {
+    background: #fce4ec;
+    color: #c62828;
 }
 
 .auth-status {
@@ -2216,7 +2318,9 @@ a.sender-count:hover {
     .sidebar-header h1,
     .sidebar-header .subtitle,
     .nav-item span,
-    .sidebar-footer .auth-email {
+    .sidebar-footer .auth-email,
+    .user-details,
+    .btn-logout {
         display: none;
     }
 

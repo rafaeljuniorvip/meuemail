@@ -11,22 +11,29 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from config.database import engine, Base
+from middlewares.auth_middleware import AuthMiddleware
 from routes.emails import router as emails_router, _sync_worker, sync_state
 from routes.search import router as search_router
 from routes.agent import router as agent_router
 from routes.config import router as config_router
 from routes.accounts import router as accounts_router
 from routes.queries import router as queries_router
+from routes.auth import router as auth_router
+from routes.users import router as users_router
 from services.gmail_service import gmail_service
 import models.app_config  # noqa: F401 - register model
 import models.account  # noqa: F401 - register model
 import models.chat_session  # noqa: F401 - register model
+import models.user  # noqa: F401 - register model
 
 SYNC_INTERVAL_MINUTES = 10
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="MeuGmail", version="1.0.0")
+
+# Auth middleware - protects all routes except public ones
+app.add_middleware(AuthMiddleware)
 
 
 def _auto_sync_loop():
@@ -44,8 +51,8 @@ def _auto_sync_loop():
 
 @app.on_event("startup")
 def startup():
-    # Migrate env vars to DB config (one-time)
-    _migrate_env_config()
+    # Run migrations
+    _run_migrations()
 
     # Migrate existing Gmail to accounts system
     try:
@@ -66,37 +73,48 @@ def startup():
     print(f"[Auto-sync] Agendado a cada {SYNC_INTERVAL_MINUTES} minutos")
 
 
-def _migrate_env_config():
-    """Migrate OPENROUTER env vars to app_config table on first run."""
-    import os
-    from services.config_service import config_service
+def _run_migrations():
+    """Run SQL migration files that haven't been applied yet."""
+    from config.database import SessionLocal
+    from sqlalchemy import text
 
+    migrations_dir = Path(__file__).parent.parent / "migrations"
+    if not migrations_dir.exists():
+        return
+
+    db = SessionLocal()
     try:
-        existing_key = config_service.get_config("openrouter_api_key")
-        if not existing_key:
-            env_key = os.getenv("OPENROUTER_API_KEY", "")
-            if env_key:
-                config_service.set_config("openrouter_api_key", env_key)
-                print("[Config] Migrated OPENROUTER_API_KEY from .env to DB")
+        for sql_file in sorted(migrations_dir.glob("*.sql")):
+            try:
+                sql = sql_file.read_text()
+                db.execute(text(sql))
+                db.commit()
+                print(f"[Migration] Applied: {sql_file.name}")
+            except Exception as e:
+                db.rollback()
+                # Ignore "already exists" errors
+                err_msg = str(e).lower()
+                if "already exists" in err_msg or "duplicate" in err_msg:
+                    continue
+                print(f"[Migration] {sql_file.name} skipped: {e}")
+    finally:
+        db.close()
 
-        existing_model = config_service.get_config("openrouter_model")
-        if not existing_model or existing_model == "anthropic/claude-sonnet-4":
-            env_model = os.getenv("OPENROUTER_MODEL", "")
-            if env_model:
-                config_service.set_config("openrouter_model", env_model)
-                print(f"[Config] Migrated OPENROUTER_MODEL from .env to DB: {env_model}")
-    except Exception as e:
-        print(f"[Config] Migration from env failed (table may not exist yet): {e}")
 
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
+# Auth routes (public)
+app.include_router(auth_router)
+
+# Protected API routes
 app.include_router(emails_router)
 app.include_router(search_router)
 app.include_router(agent_router)
 app.include_router(config_router)
 app.include_router(accounts_router)
 app.include_router(queries_router)
+app.include_router(users_router)
 
 
 @app.get("/")

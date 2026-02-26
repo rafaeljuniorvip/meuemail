@@ -18,8 +18,11 @@ TOKEN_FILE = PROJECT_ROOT / "token.json"
 
 class AccountService:
 
-    def get_all_accounts(self, db: Session) -> list[dict]:
-        accounts = db.query(Account).order_by(Account.created_at).all()
+    def get_all_accounts(self, db: Session, user_id: int = None) -> list[dict]:
+        q = db.query(Account)
+        if user_id:
+            q = q.filter(Account.user_id == user_id)
+        accounts = q.order_by(Account.created_at).all()
         return [self._account_to_dict(a) for a in accounts]
 
     def get_account(self, db: Session, account_id: int) -> Optional[dict]:
@@ -33,6 +36,7 @@ class AccountService:
             name=data["name"],
             email=data["email"],
             provider=data["provider"],
+            user_id=data.get("user_id"),
         )
 
         if data["provider"] == "gmail":
@@ -203,6 +207,7 @@ class AccountService:
                                 body=data.get("body", ""),
                                 attachments=data.get("attachments", []),
                                 account_id=account_id,
+                                user_id=account.user_id,
                             )
                             db.add(em)
                             total_synced += 1

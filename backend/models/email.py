@@ -27,3 +27,4 @@ class Email(Base):
     synced_at = Column(DateTime(timezone=True), server_default=func.now())
     body_tsv = Column(TSVECTOR)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)

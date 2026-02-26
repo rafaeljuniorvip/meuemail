@@ -10,10 +10,12 @@ const state = {
     totalPages: 1,
     authenticated: false,
     accountId: null,
+    currentUser: null,
 };
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
+    loadCurrentUser();
     checkAuth();
     setupFilters();
     setupSelectAll();
@@ -22,6 +24,49 @@ document.addEventListener('DOMContentLoaded', () => {
     restoreSidebarState();
     window.addEventListener('hashchange', handleRoute);
 });
+
+// ===== SESSION / USER =====
+async function loadCurrentUser() {
+    try {
+        const res = await fetch(`${API}/auth/me`);
+        if (res.status === 401) return;
+        const user = await res.json();
+        state.currentUser = user;
+        updateUserUI(user);
+    } catch (e) {
+        console.error('Failed to load user:', e);
+    }
+}
+
+function updateUserUI(user) {
+    if (!user) return;
+
+    // User info in sidebar
+    const nameEl = document.getElementById('user-name');
+    const emailEl = document.getElementById('user-email-display');
+    const avatarEl = document.getElementById('user-avatar');
+
+    if (nameEl) nameEl.textContent = user.name || user.email.split('@')[0];
+    if (emailEl) emailEl.textContent = user.email;
+
+    if (user.picture && avatarEl) {
+        avatarEl.src = user.picture;
+        avatarEl.style.display = 'block';
+    }
+
+    // Show admin menu item
+    if (user.role === 'admin') {
+        const navUsers = document.getElementById('nav-users');
+        if (navUsers) navUsers.style.display = '';
+    }
+}
+
+async function logout() {
+    try {
+        await fetch(`${API}/auth/logout`, { method: 'POST' });
+    } catch (e) {}
+    window.location.href = '/login';
+}
 
 // ===== ROUTING =====
 function handleRoute() {
@@ -54,6 +99,10 @@ function handleRoute() {
         document.querySelector('.nav-item[data-page="settings"]')?.classList.add('active');
         loadAiConfig();
         loadAccounts();
+    } else if (segments[0] === 'users') {
+        showPage('users');
+        document.querySelector('.nav-item[data-page="users"]')?.classList.add('active');
+        loadUsers();
     } else {
         // /emails or /emails?filters...
         showPage('emails');
@@ -1586,4 +1635,130 @@ function renderQueryPagination(currentPage, totalPages, queryId) {
     html += `<button ${currentPage >= totalPages ? 'disabled' : ''} onclick="loadQueryResults('${queryId}', ${currentPage + 1})">Próximo</button>`;
 
     container.innerHTML = html;
+}
+
+// ===== ADMIN: USERS MANAGEMENT =====
+let adminUsers = [];
+
+async function loadUsers() {
+    try {
+        const res = await fetch(`${API}/api/users`);
+        if (res.status === 403) {
+            showToast('Acesso negado: apenas administradores', 'error');
+            navigate('#/emails');
+            return;
+        }
+        adminUsers = await res.json();
+        renderUsersTable(adminUsers);
+    } catch (e) {
+        showToast('Erro ao carregar usuarios', 'error');
+    }
+}
+
+function renderUsersTable(users) {
+    const tbody = document.getElementById('users-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = users.map(u => {
+        const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('pt-BR') : 'Nunca';
+        const avatar = u.picture
+            ? `<img class="user-avatar-small" src="${escapeHtml(u.picture)}" alt="">`
+            : `<div class="user-avatar-small" style="background:#e0e0e0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#666;">${(u.name || u.email)[0].toUpperCase()}</div>`;
+
+        return `<tr>
+            <td>${avatar}</td>
+            <td>${escapeHtml(u.email)}</td>
+            <td>${escapeHtml(u.name || '-')}</td>
+            <td><span class="user-role-badge ${u.role}">${u.role}</span></td>
+            <td><span class="user-status-badge ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Ativo' : 'Inativo'}</span></td>
+            <td>${lastLogin}</td>
+            <td>
+                <button class="btn btn-sm btn-outline" onclick="toggleUserActive(${u.id}, ${!u.is_active})">${u.is_active ? 'Desativar' : 'Ativar'}</button>
+                <button class="btn btn-sm btn-outline" onclick="toggleUserRole(${u.id}, '${u.role === 'admin' ? 'user' : 'admin'}')">${u.role === 'admin' ? 'Tornar User' : 'Tornar Admin'}</button>
+                <button class="btn btn-sm btn-danger" onclick="removeUser(${u.id}, '${escapeHtml(u.email)}')">Remover</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function showAddUserModal() {
+    document.getElementById('new-user-email').value = '';
+    document.getElementById('new-user-role').value = 'user';
+    document.getElementById('user-modal').classList.add('visible');
+}
+
+function closeUserModal() {
+    document.getElementById('user-modal').classList.remove('visible');
+}
+
+async function addUser() {
+    const email = document.getElementById('new-user-email').value.trim();
+    const role = document.getElementById('new-user-role').value;
+
+    if (!email) {
+        showToast('Preencha o email', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API}/api/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, role }),
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Erro ao adicionar');
+        }
+        closeUserModal();
+        showToast('Usuario adicionado!', 'success');
+        loadUsers();
+    } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+async function toggleUserActive(userId, isActive) {
+    try {
+        const res = await fetch(`${API}/api/users/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: isActive }),
+        });
+        if (!res.ok) throw new Error('Erro ao atualizar');
+        showToast(isActive ? 'Usuario ativado' : 'Usuario desativado', 'success');
+        loadUsers();
+    } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+async function toggleUserRole(userId, role) {
+    try {
+        const res = await fetch(`${API}/api/users/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role }),
+        });
+        if (!res.ok) throw new Error('Erro ao atualizar');
+        showToast(`Role alterada para ${role}`, 'success');
+        loadUsers();
+    } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+async function removeUser(userId, email) {
+    if (!confirm(`Remover o usuario "${email}"?`)) return;
+    try {
+        const res = await fetch(`${API}/api/users/${userId}`, { method: 'DELETE' });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Erro ao remover');
+        }
+        showToast('Usuario removido', 'success');
+        loadUsers();
+    } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+    }
 }

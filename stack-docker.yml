@@ -7,17 +7,20 @@ services:
       - minha_rede
       - default
     environment:
-      - DATABASE_URL=postgresql://meuemail:SENHA_SEGURA@meuemail-db:5432/meuemail
-      - OPENROUTER_API_KEY=
-      - OPENROUTER_MODEL=anthropic/claude-sonnet-4
-      - IMAP_ENCRYPTION_KEY=
+      - DATABASE_URL=${DATABASE_URL}
+      - IMAP_ENCRYPTION_KEY=${IMAP_ENCRYPTION_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
+      - APP_URL=${APP_URL}
     deploy:
       replicas: 1
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.meuemail.rule=Host(`meuemail.falavip.com.br`)"
         - "traefik.http.routers.meuemail.entrypoints=websecure"
-        - "traefik.http.routers.meuemail.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.meuemail.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.meuemail.loadbalancer.server.port=8467"
         - "traefik.docker.network=minha_rede"
 
@@ -26,9 +29,9 @@ services:
     networks:
       - default
     environment:
-      - POSTGRES_DB=meuemail
-      - POSTGRES_USER=meuemail
-      - POSTGRES_PASSWORD=SENHA_SEGURA
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - meuemail-pgdata:/var/lib/postgresql/data
 

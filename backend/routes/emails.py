@@ -2,7 +2,7 @@ import threading
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import func, desc, asc, or_, text, literal_column
@@ -11,6 +11,10 @@ from sqlalchemy.orm import Session
 from config.database import get_db, SessionLocal
 from models.email import Email
 from services.gmail_service import gmail_service
+
+
+def get_current_user(request: Request) -> dict:
+    return getattr(request.state, "user", {})
 
 router = APIRouter(prefix="/api")
 
@@ -48,6 +52,7 @@ def auth_connect():
 
 @router.get("/emails")
 def list_emails(
+    request: Request,
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
     sender: Optional[str] = None,
@@ -63,7 +68,10 @@ def list_emails(
     sort_order: str = Query("desc", regex="^(asc|desc)$"),
     db: Session = Depends(get_db),
 ):
+    user = get_current_user(request)
     query = db.query(Email)
+    if user.get("id"):
+        query = query.filter(Email.user_id == user["id"])
 
     if account_id is not None:
         query = query.filter(Email.account_id == account_id)
@@ -109,8 +117,11 @@ def list_emails(
 
 
 @router.get("/emails/stats")
-def email_stats(account_id: Optional[int] = None, db: Session = Depends(get_db)):
+def email_stats(request: Request, account_id: Optional[int] = None, db: Session = Depends(get_db)):
+    user = get_current_user(request)
     base_query = db.query(Email)
+    if user.get("id"):
+        base_query = base_query.filter(Email.user_id == user["id"])
     if account_id is not None:
         base_query = base_query.filter(Email.account_id == account_id)
 
@@ -119,6 +130,8 @@ def email_stats(account_id: Optional[int] = None, db: Session = Depends(get_db))
     unread = base_query.filter(Email.is_read == False).with_entities(func.count(Email.id)).scalar()
 
     senders_query = db.query(Email.sender_email, func.count(Email.id).label("count"))
+    if user.get("id"):
+        senders_query = senders_query.filter(Email.user_id == user["id"])
     if account_id is not None:
         senders_query = senders_query.filter(Email.account_id == account_id)
     top_senders = (
@@ -130,6 +143,8 @@ def email_stats(account_id: Optional[int] = None, db: Session = Depends(get_db))
     )
 
     labels_base = db.query(func.unnest(Email.labels).label("label"))
+    if user.get("id"):
+        labels_base = labels_base.filter(Email.user_id == user["id"])
     if account_id is not None:
         labels_base = labels_base.filter(Email.account_id == account_id)
     labels_query = labels_base.subquery()
@@ -143,6 +158,8 @@ def email_stats(account_id: Optional[int] = None, db: Session = Depends(get_db))
     # Top domains
     domain_expr = func.split_part(Email.sender_email, "@", 2)
     domains_query = db.query(domain_expr.label("domain"), func.count(Email.id).label("count")).filter(Email.sender_email.ilike("%@%"))
+    if user.get("id"):
+        domains_query = domains_query.filter(Email.user_id == user["id"])
     if account_id is not None:
         domains_query = domains_query.filter(Email.account_id == account_id)
     top_domains = (
@@ -274,11 +291,13 @@ def domain_groups(db: Session = Depends(get_db)):
     ]
 
 
-def _get_gmail_account_id(db) -> int | None:
-    """Get the account_id for the Gmail account."""
+def _get_gmail_account(db) -> tuple:
+    """Get the account_id and user_id for the Gmail account."""
     from models.account import Account
     account = db.query(Account).filter(Account.provider == "gmail").first()
-    return account.id if account else None
+    if account:
+        return account.id, account.user_id
+    return None, None
 
 
 def _sync_worker():
@@ -286,7 +305,7 @@ def _sync_worker():
     db = SessionLocal()
 
     try:
-        gmail_account_id = _get_gmail_account_id(db)
+        gmail_account_id, gmail_user_id = _get_gmail_account(db)
 
         all_ids = []
         page_token = None
@@ -342,6 +361,7 @@ def _sync_worker():
                         body=data.get("body", ""),
                         attachments=data.get("attachments", []),
                         account_id=gmail_account_id,
+                        user_id=gmail_user_id,
                     )
                     db.add(email)
                     new_count += 1
@@ -385,7 +405,7 @@ def sync_status():
 
 
 @router.post("/emails/delete")
-def delete_emails(request: DeleteRequest, db: Session = Depends(get_db)):
+def delete_emails(request: DeleteRequest, http_request: Request = None, db: Session = Depends(get_db)):
     if not gmail_service.is_authenticated():
         raise HTTPException(status_code=401, detail="Gmail não conectado")
 
@@ -458,8 +478,12 @@ def delete_by_filter(request: DeleteByFilterRequest, db: Session = Depends(get_d
 
 
 @router.get("/emails/{gmail_id}")
-def get_email(gmail_id: str, db: Session = Depends(get_db)):
-    email = db.query(Email).filter(Email.gmail_id == gmail_id).first()
+def get_email(gmail_id: str, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    q = db.query(Email).filter(Email.gmail_id == gmail_id)
+    if user.get("id"):
+        q = q.filter(Email.user_id == user["id"])
+    email = q.first()
     if not email:
         raise HTTPException(status_code=404, detail="Email não encontrado")
 
@@ -514,8 +538,12 @@ def download_attachment(gmail_id: str, attachment_id: str, db: Session = Depends
 
 
 @router.get("/labels")
-def list_labels(db: Session = Depends(get_db)):
-    labels_query = db.query(func.unnest(Email.labels).label("label")).subquery()
+def list_labels(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    base = db.query(Email)
+    if user.get("id"):
+        base = base.filter(Email.user_id == user["id"])
+    labels_query = base.with_entities(func.unnest(Email.labels).label("label")).subquery()
     labels = (
         db.query(labels_query.c.label, func.count().label("count"))
         .group_by(labels_query.c.label)

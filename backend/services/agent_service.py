@@ -257,20 +257,21 @@ SCHEMA DO BANCO:
   - date (TIMESTAMPTZ), snippet (TEXT), body (TEXT), body_tsv (TSVECTOR - busca full-text em português)
   - labels (TEXT[] - array de labels Gmail: INBOX, SENT, SPAM, TRASH, CATEGORY_PROMOTIONS, STARRED, etc)
   - size_estimate (INTEGER - bytes), has_attachments (BOOLEAN), is_read (BOOLEAN)
-  - attachments (JSONB), gmail_link (VARCHAR), account_id (INTEGER FK)
+  - attachments (JSONB), gmail_link (VARCHAR), account_id (INTEGER FK), user_id (INTEGER FK)
 
 - Tabela 'accounts':
-  - id (SERIAL PK), name, email, provider ('gmail'/'imap'), is_active, last_sync_at, sync_status
+  - id (SERIAL PK), name, email, provider ('gmail'/'imap'), is_active, last_sync_at, sync_status, user_id (INTEGER FK)
 
 - Tabela 'chat_sessions':
-  - id (VARCHAR PK), title, messages (JSONB), tools_map (JSONB), created_at, updated_at
+  - id (VARCHAR PK), title, messages (JSONB), tools_map (JSONB), created_at, updated_at, user_id (INTEGER FK)
 
 DICAS:
 - Full-text search no body: WHERE body_tsv @@ plainto_tsquery('portuguese', 'termo')
 - Labels é array: WHERE 'INBOX' = ANY(labels)
 - Datas: WHERE date >= '2024-01-01' AND date < '2024-02-01'
 - Limite de 100 rows no resultado. Use LIMIT se precisar de menos.
-- Apenas SELECT/WITH (CTEs) são permitidos.""",
+- Apenas SELECT/WITH (CTEs) são permitidos.
+- IMPORTANTE: Todas as queries DEVEM filtrar por user_id. O filtro será adicionado automaticamente.""",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -312,10 +313,56 @@ def _serialize_result(obj):
     return str(obj)
 
 
+def _inject_user_id_sql(query: str, user_id: int) -> str:
+    """Inject user_id filter into SQL queries for data isolation.
+
+    Adds WHERE user_id = X to queries on emails, accounts, chat_sessions tables.
+    """
+    if not user_id:
+        return query
+
+    import re
+
+    user_filter = f"user_id = {int(user_id)}"
+
+    # For queries with WHERE clause, add AND user_id = X
+    # For queries without WHERE, add WHERE user_id = X before GROUP BY/ORDER BY/LIMIT
+    # Handle both simple and CTE queries
+
+    # Simple approach: find FROM <table> and inject filter
+    tables_needing_filter = ["emails", "accounts", "chat_sessions"]
+
+    for table in tables_needing_filter:
+        # Pattern: FROM table (with optional alias) followed by WHERE or GROUP/ORDER/LIMIT/end
+        # Add user_id filter after WHERE or add new WHERE
+        pattern_with_where = re.compile(
+            rf"(FROM\s+{table}\b[^)]*?)(WHERE\s+)",
+            re.IGNORECASE | re.DOTALL,
+        )
+        pattern_without_where = re.compile(
+            rf"(FROM\s+{table}\b(?:\s+\w+)?)((?:\s+(?:GROUP|ORDER|LIMIT|HAVING|UNION|EXCEPT|INTERSECT|$)))",
+            re.IGNORECASE | re.DOTALL,
+        )
+
+        if pattern_with_where.search(query):
+            query = pattern_with_where.sub(
+                rf"\1WHERE {user_filter} AND ", query
+            )
+        elif pattern_without_where.search(query):
+            query = pattern_without_where.sub(
+                rf"\1 WHERE {user_filter}\2", query
+            )
+
+    return query
+
+
 class AgentService:
 
-    def _execute_tool(self, tool_name: str, arguments: dict):
-        method_map = {
+    def _execute_tool(self, tool_name: str, arguments: dict, user_id: int = None):
+        """Execute a tool with user_id injected for data isolation."""
+
+        # Tools that accept user_id parameter
+        user_filtered_tools = {
             "search_body_fulltext": search_service.search_body_fulltext,
             "search_subject_keyword": search_service.search_subject_keyword,
             "search_sender": search_service.search_sender,
@@ -329,19 +376,43 @@ class AgentService:
             "get_sender_summary": search_service.get_sender_summary,
             "get_top_senders": search_service.get_top_senders,
             "get_email_stats": search_service.get_email_stats,
-            "execute_sql": search_service.execute_sql,
+        }
+
+        # Tools without user_id filtering
+        plain_tools = {
             "save_query": search_service.save_query,
         }
-        fn = method_map.get(tool_name)
-        if not fn:
-            return {"error": f"Tool '{tool_name}' não encontrada"}
-        try:
-            result = fn(**arguments)
-            return _serialize_result(result)
-        except Exception as e:
-            return {"error": str(e)}
 
-    async def chat(self, messages: list[dict]) -> dict:
+        fn = user_filtered_tools.get(tool_name)
+        if fn:
+            try:
+                arguments["user_id"] = user_id
+                result = fn(**arguments)
+                return _serialize_result(result)
+            except Exception as e:
+                return {"error": str(e)}
+
+        if tool_name == "execute_sql":
+            try:
+                sql = arguments.get("query", "")
+                if user_id:
+                    sql = _inject_user_id_sql(sql, user_id)
+                result = search_service.execute_sql(sql)
+                return _serialize_result(result)
+            except Exception as e:
+                return {"error": str(e)}
+
+        fn = plain_tools.get(tool_name)
+        if fn:
+            try:
+                result = fn(**arguments)
+                return _serialize_result(result)
+            except Exception as e:
+                return {"error": str(e)}
+
+        return {"error": f"Tool '{tool_name}' não encontrada"}
+
+    async def chat(self, messages: list[dict], user_id: int = None) -> dict:
         api_key = config_service.get_config("openrouter_api_key")
         model = config_service.get_config("openrouter_model") or "anthropic/claude-sonnet-4"
 
@@ -402,7 +473,7 @@ class AgentService:
                         except json.JSONDecodeError:
                             fn_args = {}
 
-                        result = self._execute_tool(fn_name, fn_args)
+                        result = self._execute_tool(fn_name, fn_args, user_id=user_id)
                         tools_used.append({"tool": fn_name, "args": fn_args})
 
                         conversation.append({

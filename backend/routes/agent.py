@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,10 @@ from services.agent_service import agent_service
 from services.config_service import config_service
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
+
+
+def get_current_user(request: Request) -> dict:
+    return getattr(request.state, "user", {})
 
 
 class ChatMessage(BaseModel):
@@ -30,9 +34,10 @@ class SessionSave(BaseModel):
 
 
 @router.post("/chat")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, http_request: Request):
+    user = get_current_user(http_request)
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
-    result = await agent_service.chat(messages)
+    result = await agent_service.chat(messages, user_id=user.get("id"))
     return result
 
 
@@ -49,8 +54,12 @@ def health():
 # ===== CHAT SESSIONS =====
 
 @router.get("/sessions")
-def list_sessions(db: Session = Depends(get_db)):
-    sessions = db.query(ChatSession).order_by(ChatSession.updated_at.desc()).limit(50).all()
+def list_sessions(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    q = db.query(ChatSession)
+    if user.get("id"):
+        q = q.filter(ChatSession.user_id == user["id"])
+    sessions = q.order_by(ChatSession.updated_at.desc()).limit(50).all()
     return [
         {
             "id": s.id,
@@ -77,7 +86,8 @@ def get_session(session_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/sessions")
-def save_session(body: SessionSave, db: Session = Depends(get_db)):
+def save_session(body: SessionSave, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
     existing = db.query(ChatSession).filter(ChatSession.id == body.id).first()
     if existing:
         existing.title = body.title
@@ -89,6 +99,7 @@ def save_session(body: SessionSave, db: Session = Depends(get_db)):
             title=body.title,
             messages=body.messages,
             tools_map=body.toolsMap or {},
+            user_id=user.get("id"),
         )
         db.add(session)
     db.commit()

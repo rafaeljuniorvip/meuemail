@@ -74,8 +74,32 @@
                 </svg>
                 <span>Configurações</span>
             </div>
+
+            <div class="nav-item admin-only" data-page="users" id="nav-users" style="display:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                <span>Usuarios</span>
+            </div>
         </nav>
         <div class="sidebar-footer">
+            <div class="user-info" id="user-info">
+                <img class="user-avatar" id="user-avatar" src="" alt="" style="display:none;">
+                <div class="user-details">
+                    <span class="user-name" id="user-name"></span>
+                    <span class="user-email" id="user-email-display"></span>
+                </div>
+                <button class="btn-logout" id="btn-logout" onclick="logout()" title="Sair">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                </button>
+            </div>
             <div class="auth-status">
                 <span class="auth-dot" id="auth-dot"></span>
                 <span class="auth-email" id="auth-email">Desconectado</span>
@@ -500,6 +524,34 @@
             <div id="email-detail-content"></div>
         </div>
 
+        <!-- Page: Users (Admin) -->
+        <div id="page-users" class="page">
+            <div class="header-bar">
+                <h2>Gerenciar Usuarios</h2>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="showAddUserModal()">+ Adicionar Usuario</button>
+                </div>
+            </div>
+            <div class="card" id="users-table-card" style="padding:0; overflow:hidden;">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:50px"></th>
+                                <th>Email</th>
+                                <th>Nome</th>
+                                <th>Role</th>
+                                <th>Ativo</th>
+                                <th>Ultimo Login</th>
+                                <th>Acoes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- Page: Query Results -->
         <div id="page-query-results" class="page">
             <div class="query-results-header">
@@ -610,6 +662,29 @@
             <div class="modal-actions" style="margin-top:20px">
                 <button class="btn btn-outline" onclick="closeAccountModal()">Cancelar</button>
                 <button class="btn btn-primary" onclick="saveAccount()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div class="modal-overlay" id="user-modal">
+        <div class="modal">
+            <h3>Adicionar Usuario</h3>
+            <div class="modal-field">
+                <label>Email</label>
+                <input type="email" id="new-user-email" placeholder="usuario@gmail.com">
+            </div>
+            <div class="modal-field">
+                <label>Role</label>
+                <select id="new-user-role">
+                    <option value="user">Usuario</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:8px;">O usuario podera fazer login com Google apos ser adicionado.</p>
+            <div class="modal-actions" style="margin-top:20px">
+                <button class="btn btn-outline" onclick="closeUserModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="addUser()">Adicionar</button>
             </div>
         </div>
     </div>

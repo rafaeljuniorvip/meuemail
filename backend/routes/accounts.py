@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -8,6 +8,10 @@ from config.database import get_db
 from services.account_service import account_service
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
+
+
+def get_current_user(request: Request) -> dict:
+    return getattr(request.state, "user", {})
 
 
 class AccountCreate(BaseModel):
@@ -42,15 +46,19 @@ class TestConnectionRequest(BaseModel):
 
 
 @router.get("")
-def list_accounts(db: Session = Depends(get_db)):
-    return account_service.get_all_accounts(db)
+def list_accounts(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request)
+    return account_service.get_all_accounts(db, user_id=user.get("id"))
 
 
 @router.post("")
-def create_account(body: AccountCreate, db: Session = Depends(get_db)):
+def create_account(body: AccountCreate, request: Request, db: Session = Depends(get_db)):
     if body.provider not in ("gmail", "imap"):
         raise HTTPException(status_code=400, detail="Provider must be 'gmail' or 'imap'")
-    result = account_service.create_account(db, body.model_dump())
+    user = get_current_user(request)
+    data = body.model_dump()
+    data["user_id"] = user.get("id")
+    result = account_service.create_account(db, data)
     return result
 
 
