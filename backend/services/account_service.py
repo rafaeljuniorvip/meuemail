@@ -312,6 +312,7 @@ class AccountService:
             "sync_status": account.sync_status,
             "sync_error": account.sync_error,
             "created_at": account.created_at.isoformat() if account.created_at else None,
+            "iredmail_source_email": account.iredmail_source_email,
         }
 
 

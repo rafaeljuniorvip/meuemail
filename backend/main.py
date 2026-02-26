@@ -20,11 +20,13 @@ from routes.accounts import router as accounts_router
 from routes.queries import router as queries_router
 from routes.auth import router as auth_router
 from routes.users import router as users_router
+from routes.iredmail import router as iredmail_router
 from services.gmail_service import gmail_service
 import models.app_config  # noqa: F401 - register model
 import models.account  # noqa: F401 - register model
 import models.chat_session  # noqa: F401 - register model
 import models.user  # noqa: F401 - register model
+import models.iredmail_config  # noqa: F401 - register model
 
 SYNC_INTERVAL_MINUTES = 10
 
@@ -115,6 +117,7 @@ app.include_router(config_router)
 app.include_router(accounts_router)
 app.include_router(queries_router)
 app.include_router(users_router)
+app.include_router(iredmail_router)
 
 
 @app.get("/")

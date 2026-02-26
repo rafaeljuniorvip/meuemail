@@ -509,6 +509,49 @@
                 </div>
             </div>
 
+            <!-- iRedMail Import Card (Admin only) -->
+            <div class="card admin-only" id="iredmail-card" style="display:none;">
+                <div class="card-title-row">
+                    <h3 class="card-title">Importar do iRedMail</h3>
+                    <div>
+                        <button class="btn btn-outline" onclick="showIRedMailConfig()">Configurar</button>
+                        <button class="btn btn-primary" id="btn-iredmail-discover" onclick="discoverIRedMail()" style="display:none;">Descobrir Caixas</button>
+                    </div>
+                </div>
+                <div id="iredmail-status" style="font-size:13px;color:var(--text-muted);padding:8px 0;"></div>
+                <div id="iredmail-domain-filter" style="display:none; margin-bottom:12px;">
+                    <select id="iredmail-domain-select" onchange="filterIRedMailDomain(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+                        <option value="">Todos os Dominios</option>
+                    </select>
+                </div>
+                <div id="iredmail-mailboxes" style="display:none;">
+                    <div class="iredmail-actions-bar">
+                        <label class="checkbox-field" style="margin:0;">
+                            <input type="checkbox" id="iredmail-select-all" onchange="toggleIRedMailSelectAll(this.checked)">
+                            <span>Selecionar todos</span>
+                        </label>
+                        <span id="iredmail-selected-count" style="font-size:12px;color:var(--text-muted);">0 selecionadas</span>
+                        <button class="btn btn-primary btn-sm" onclick="importSelectedIRedMail()">Importar Selecionadas</button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:40px"></th>
+                                    <th>Email</th>
+                                    <th>Nome</th>
+                                    <th>Dominio</th>
+                                    <th>Msgs</th>
+                                    <th>Uso</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="iredmail-mailboxes-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Accounts Card (placeholder for Feature 1) -->
             <div class="card" id="accounts-card">
                 <div class="card-title-row">
@@ -685,6 +728,71 @@
             <div class="modal-actions" style="margin-top:20px">
                 <button class="btn btn-outline" onclick="closeUserModal()">Cancelar</button>
                 <button class="btn btn-primary" onclick="addUser()">Adicionar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- iRedMail Config Modal -->
+    <div class="modal-overlay" id="iredmail-config-modal">
+        <div class="modal modal-wide">
+            <h3>Configuracao iRedMail</h3>
+            <div class="modal-field">
+                <label>Host MariaDB</label>
+                <input type="text" id="iredmail-mariadb-host" placeholder="email2.viptecnologia.com.br">
+            </div>
+            <div class="imap-row">
+                <div class="modal-field">
+                    <label>Porta</label>
+                    <input type="number" id="iredmail-mariadb-port" value="3306">
+                </div>
+                <div class="modal-field">
+                    <label>Database</label>
+                    <input type="text" id="iredmail-mariadb-database" value="vmail">
+                </div>
+            </div>
+            <div class="imap-row">
+                <div class="modal-field">
+                    <label>Usuario MariaDB</label>
+                    <input type="text" id="iredmail-mariadb-user" placeholder="meugmail_reader">
+                </div>
+                <div class="modal-field">
+                    <label>Senha MariaDB</label>
+                    <input type="password" id="iredmail-mariadb-password" placeholder="Senha">
+                </div>
+            </div>
+            <div style="margin:12px 0;">
+                <button class="btn btn-outline" onclick="testIRedMailConnection()">Testar Conexao MariaDB</button>
+                <span id="iredmail-test-result" style="font-size:12px;margin-left:8px;"></span>
+            </div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+            <h4 style="font-size:14px;margin-bottom:12px;">Dovecot Master User (IMAP)</h4>
+            <div class="imap-row">
+                <div class="modal-field">
+                    <label>Host IMAP</label>
+                    <input type="text" id="iredmail-imap-host" value="email2.viptecnologia.com.br">
+                </div>
+                <div class="modal-field">
+                    <label>Porta IMAP</label>
+                    <input type="number" id="iredmail-imap-port" value="993">
+                </div>
+            </div>
+            <div class="imap-row">
+                <div class="modal-field">
+                    <label>Master User</label>
+                    <input type="text" id="iredmail-master-user" value="dovecotadmin">
+                </div>
+                <div class="modal-field">
+                    <label>Master Password</label>
+                    <input type="password" id="iredmail-master-password" placeholder="Senha do master user Dovecot">
+                </div>
+            </div>
+            <div style="margin:12px 0;">
+                <button class="btn btn-outline" onclick="testIRedMailMasterUser()">Testar Master User</button>
+                <span id="iredmail-master-test-result" style="font-size:12px;margin-left:8px;"></span>
+            </div>
+            <div class="modal-actions" style="margin-top:20px">
+                <button class="btn btn-outline" onclick="closeIRedMailConfig()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveIRedMailConfig()">Salvar</button>
             </div>
         </div>
     </div>

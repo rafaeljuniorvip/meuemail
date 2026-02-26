@@ -99,6 +99,7 @@ function handleRoute() {
         document.querySelector('.nav-item[data-page="settings"]')?.classList.add('active');
         loadAiConfig();
         loadAccounts();
+        loadIRedMailConfig();
     } else if (segments[0] === 'users') {
         showPage('users');
         document.querySelector('.nav-item[data-page="users"]')?.classList.add('active');
@@ -1760,5 +1761,214 @@ async function removeUser(userId, email) {
         loadUsers();
     } catch (e) {
         showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+// ===== IREDMAIL INTEGRATION =====
+let iredmailMailboxes = [];
+let iredmailSelectedEmails = new Set();
+
+async function loadIRedMailConfig() {
+    if (!state.currentUser || state.currentUser.role !== 'admin') return;
+    const card = document.getElementById('iredmail-card');
+    if (card) card.style.display = '';
+    try {
+        const res = await fetch(`${API}/api/iredmail/config`);
+        const config = await res.json();
+        if (config) {
+            document.getElementById('btn-iredmail-discover').style.display = '';
+            document.getElementById('iredmail-status').textContent =
+                `Configurado: ${config.mariadb_host} | Master user: ${config.has_master_password ? 'Sim' : 'Nao configurado'}`;
+        } else {
+            document.getElementById('iredmail-status').textContent =
+                'Nao configurado. Clique em "Configurar" para conectar ao iRedMail.';
+        }
+    } catch (e) {
+        console.error('Failed to load iRedMail config:', e);
+    }
+}
+
+async function showIRedMailConfig() {
+    try {
+        const res = await fetch(`${API}/api/iredmail/config`);
+        const config = await res.json();
+        if (config) {
+            document.getElementById('iredmail-mariadb-host').value = config.mariadb_host || '';
+            document.getElementById('iredmail-mariadb-port').value = config.mariadb_port || 3306;
+            document.getElementById('iredmail-mariadb-user').value = config.mariadb_user || '';
+            document.getElementById('iredmail-mariadb-database').value = config.mariadb_database || 'vmail';
+            document.getElementById('iredmail-imap-host').value = config.imap_host || '';
+            document.getElementById('iredmail-imap-port').value = config.imap_port || 993;
+            document.getElementById('iredmail-master-user').value = config.master_user || 'dovecotadmin';
+        }
+    } catch (e) { /* ignore */ }
+    document.getElementById('iredmail-config-modal').classList.add('active');
+}
+
+function closeIRedMailConfig() {
+    document.getElementById('iredmail-config-modal').classList.remove('active');
+    document.getElementById('iredmail-test-result').textContent = '';
+    document.getElementById('iredmail-master-test-result').textContent = '';
+}
+
+async function saveIRedMailConfig() {
+    const body = {
+        mariadb_host: document.getElementById('iredmail-mariadb-host').value,
+        mariadb_port: parseInt(document.getElementById('iredmail-mariadb-port').value) || 3306,
+        mariadb_user: document.getElementById('iredmail-mariadb-user').value,
+        mariadb_password: document.getElementById('iredmail-mariadb-password').value,
+        mariadb_database: document.getElementById('iredmail-mariadb-database').value || 'vmail',
+        imap_host: document.getElementById('iredmail-imap-host').value,
+        imap_port: parseInt(document.getElementById('iredmail-imap-port').value) || 993,
+        master_user: document.getElementById('iredmail-master-user').value || 'dovecotadmin',
+        master_password: document.getElementById('iredmail-master-password').value || null,
+    };
+    if (!body.mariadb_host || !body.mariadb_user || !body.mariadb_password) {
+        showToast('Preencha host, usuario e senha do MariaDB', 'error');
+        return;
+    }
+    try {
+        const res = await fetch(`${API}/api/iredmail/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error('Erro ao salvar');
+        showToast('Configuracao iRedMail salva', 'success');
+        closeIRedMailConfig();
+        loadIRedMailConfig();
+    } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+async function testIRedMailConnection() {
+    const el = document.getElementById('iredmail-test-result');
+    el.textContent = 'Testando...';
+    el.style.color = 'var(--text-muted)';
+    try {
+        const res = await fetch(`${API}/api/iredmail/test-connection`, { method: 'POST' });
+        const data = await res.json();
+        el.textContent = data.message;
+        el.style.color = data.success ? '#2e7d32' : '#c62828';
+    } catch (e) {
+        el.textContent = 'Erro: ' + e.message;
+        el.style.color = '#c62828';
+    }
+}
+
+async function testIRedMailMasterUser() {
+    const el = document.getElementById('iredmail-master-test-result');
+    el.textContent = 'Testando...';
+    el.style.color = 'var(--text-muted)';
+    try {
+        const res = await fetch(`${API}/api/iredmail/test-master-user`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ test_email: document.getElementById('iredmail-mariadb-user').value + '@' + document.getElementById('iredmail-mariadb-host').value }),
+        });
+        const data = await res.json();
+        el.textContent = data.message;
+        el.style.color = data.success ? '#2e7d32' : '#c62828';
+    } catch (e) {
+        el.textContent = 'Erro: ' + e.message;
+        el.style.color = '#c62828';
+    }
+}
+
+async function discoverIRedMail() {
+    const domain = document.getElementById('iredmail-domain-select').value || null;
+    try {
+        // Load domains for filter
+        const domainsRes = await fetch(`${API}/api/iredmail/domains`);
+        const domains = await domainsRes.json();
+        const select = document.getElementById('iredmail-domain-select');
+        select.innerHTML = '<option value="">Todos os Dominios</option>';
+        domains.forEach(d => {
+            if (d.mailbox_count > 0) {
+                select.innerHTML += `<option value="${d.domain}" ${d.domain === domain ? 'selected' : ''}>${d.domain} (${d.mailbox_count})</option>`;
+            }
+        });
+        document.getElementById('iredmail-domain-filter').style.display = '';
+
+        // Load mailboxes
+        const url = domain ? `${API}/api/iredmail/mailboxes?domain=${domain}` : `${API}/api/iredmail/mailboxes`;
+        const res = await fetch(url);
+        iredmailMailboxes = await res.json();
+        iredmailSelectedEmails.clear();
+        renderIRedMailMailboxes();
+        document.getElementById('iredmail-mailboxes').style.display = '';
+    } catch (e) {
+        showToast('Erro ao descobrir caixas: ' + e.message, 'error');
+    }
+}
+
+function filterIRedMailDomain(domain) {
+    discoverIRedMail();
+}
+
+function renderIRedMailMailboxes() {
+    const tbody = document.getElementById('iredmail-mailboxes-tbody');
+    tbody.innerHTML = '';
+    iredmailMailboxes.forEach(m => {
+        const imported = m.already_imported;
+        const active = m.active === 1;
+        const usedMB = (m.used_bytes / (1024 * 1024)).toFixed(1);
+        const tr = document.createElement('tr');
+        if (imported) tr.style.opacity = '0.6';
+        tr.innerHTML = `
+            <td><input type="checkbox" class="iredmail-cb" data-email="${m.username}" ${imported ? 'disabled' : ''} ${iredmailSelectedEmails.has(m.username) ? 'checked' : ''} onchange="toggleIRedMailSelect(this)"></td>
+            <td><strong>${m.username}</strong></td>
+            <td>${m.name || '-'}</td>
+            <td>${m.domain}</td>
+            <td>${m.message_count.toLocaleString()}</td>
+            <td>${usedMB} MB</td>
+            <td>${imported ? '<span class="iredmail-badge-imported">Importada</span>' : active ? '<span class="iredmail-badge-active">Ativa</span>' : '<span class="iredmail-badge-inactive">Inativa</span>'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    updateIRedMailSelectedCount();
+}
+
+function toggleIRedMailSelect(cb) {
+    if (cb.checked) {
+        iredmailSelectedEmails.add(cb.dataset.email);
+    } else {
+        iredmailSelectedEmails.delete(cb.dataset.email);
+    }
+    updateIRedMailSelectedCount();
+}
+
+function toggleIRedMailSelectAll(checked) {
+    document.querySelectorAll('.iredmail-cb:not(:disabled)').forEach(cb => {
+        cb.checked = checked;
+        if (checked) iredmailSelectedEmails.add(cb.dataset.email);
+        else iredmailSelectedEmails.delete(cb.dataset.email);
+    });
+    updateIRedMailSelectedCount();
+}
+
+function updateIRedMailSelectedCount() {
+    document.getElementById('iredmail-selected-count').textContent = `${iredmailSelectedEmails.size} selecionadas`;
+}
+
+async function importSelectedIRedMail() {
+    if (iredmailSelectedEmails.size === 0) {
+        showToast('Selecione pelo menos uma caixa postal', 'error');
+        return;
+    }
+    try {
+        const res = await fetch(`${API}/api/iredmail/import`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ emails: Array.from(iredmailSelectedEmails) }),
+        });
+        const data = await res.json();
+        showToast(`${data.total_created} criadas, ${data.total_skipped} ja existiam, ${data.total_errors} erros`, data.total_errors > 0 ? 'error' : 'success');
+        iredmailSelectedEmails.clear();
+        discoverIRedMail();
+        loadAccounts();
+    } catch (e) {
+        showToast('Erro na importacao: ' + e.message, 'error');
     }
 }
