@@ -133,11 +133,15 @@ class AccountService:
                 return {"success": False, "message": str(e)}
 
         elif account.provider == "gmail":
-            from services.gmail_service import gmail_service
-            return {
-                "success": gmail_service.is_authenticated(),
-                "message": "Gmail conectado" if gmail_service.is_authenticated() else "Gmail não conectado",
-            }
+            try:
+                token_data = json.loads(account.oauth_token or "{}")
+                has_token = bool(token_data.get("refresh_token"))
+                return {
+                    "success": has_token,
+                    "message": "Gmail conectado (OAuth)" if has_token else "Gmail não conectado - reconecte via OAuth",
+                }
+            except Exception as e:
+                return {"success": False, "message": f"Erro: {e}"}
 
         return {"success": False, "message": "Provedor desconhecido"}
 
@@ -264,8 +268,172 @@ class AccountService:
             sync_progress.pop(account_id, None)
             db.close()
 
+    def sync_gmail_account(self, account_id: int):
+        """Sync a Gmail account using OAuth refresh_token via Gmail API."""
+        db = SessionLocal()
+        try:
+            account = db.query(Account).filter(Account.id == account_id).first()
+            if not account or account.provider != "gmail":
+                return
+
+            account.sync_status = "syncing"
+            account.sync_error = None
+            db.commit()
+
+            sync_progress[account_id] = {
+                "status": "connecting",
+                "folder": "Gmail",
+                "folders_done": 0,
+                "folders_total": 1,
+                "total": 0,
+                "synced": 0,
+                "skipped": 0,
+            }
+
+            # Parse oauth_token for refresh_token
+            token_data = json.loads(account.oauth_token or "{}")
+            refresh_token = token_data.get("refresh_token")
+            if not refresh_token:
+                raise Exception("No refresh_token found in oauth_token")
+
+            from config.auth import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+            from google.oauth2.credentials import Credentials
+            from google.auth.transport.requests import Request as GoogleAuthRequest
+            from googleapiclient.discovery import build
+
+            creds = Credentials(
+                token=token_data.get("access_token"),
+                refresh_token=refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=GOOGLE_CLIENT_ID,
+                client_secret=GOOGLE_CLIENT_SECRET,
+                scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+            )
+
+            if not creds.valid:
+                creds.refresh(GoogleAuthRequest())
+                # Update stored access_token
+                token_data["access_token"] = creds.token
+                account.oauth_token = json.dumps(token_data)
+                db.commit()
+
+            service = build("gmail", "v1", credentials=creds)
+
+            sync_progress[account_id]["status"] = "syncing"
+
+            # Fetch all message IDs
+            total_synced = 0
+            page_token = None
+            all_msg_ids = []
+
+            while True:
+                results = (
+                    service.users()
+                    .messages()
+                    .list(userId="me", maxResults=500, pageToken=page_token)
+                    .execute()
+                )
+                messages = results.get("messages", [])
+                all_msg_ids.extend([m["id"] for m in messages])
+                page_token = results.get("nextPageToken")
+                if not page_token:
+                    break
+
+            # Filter existing
+            existing = set()
+            batch_size_check = 5000
+            for i in range(0, len(all_msg_ids), batch_size_check):
+                chunk = all_msg_ids[i : i + batch_size_check]
+                rows = db.query(Email.gmail_id).filter(Email.gmail_id.in_(chunk)).all()
+                existing.update(r[0] for r in rows)
+
+            new_ids = [mid for mid in all_msg_ids if mid not in existing]
+            skipped = len(all_msg_ids) - len(new_ids)
+
+            sync_progress[account_id]["total"] = len(new_ids)
+            sync_progress[account_id]["skipped"] = skipped
+
+            if not new_ids:
+                sync_progress[account_id]["status"] = "done"
+                account.sync_status = "idle"
+                account.last_sync_at = datetime.now(timezone.utc)
+                db.commit()
+                print(f"[Gmail Sync] Account {account.email}: 0 new emails (skipped {skipped})")
+                return
+
+            # Fetch in batches using Gmail API batch
+            from services.gmail_service import GmailService
+            parser = GmailService()
+            parser.service = service
+
+            batch_size = 50
+            for i in range(0, len(new_ids), batch_size):
+                chunk = new_ids[i : i + batch_size]
+                emails_data = parser.fetch_emails_batch(chunk)
+
+                for data in emails_data:
+                    em = Email(
+                        gmail_id=data["gmail_id"],
+                        thread_id=data["thread_id"],
+                        subject=data["subject"],
+                        sender=data["sender"],
+                        sender_email=data["sender_email"],
+                        recipients=data["recipients"],
+                        date=data["date"],
+                        snippet=data["snippet"],
+                        labels=data["labels"],
+                        size_estimate=data["size_estimate"],
+                        has_attachments=data["has_attachments"],
+                        gmail_link=data["gmail_link"],
+                        is_read=data["is_read"],
+                        body=data.get("body", ""),
+                        attachments=data.get("attachments", []),
+                        account_id=account_id,
+                        user_id=account.user_id,
+                    )
+                    db.add(em)
+                    total_synced += 1
+
+                db.commit()
+                sync_progress[account_id]["synced"] = min(i + batch_size, len(new_ids))
+
+            sync_progress[account_id]["folders_done"] = 1
+            account.sync_status = "idle"
+            account.last_sync_at = datetime.now(timezone.utc)
+            db.commit()
+            print(f"[Gmail Sync] Account {account.email}: synced {total_synced} new emails")
+
+        except Exception as e:
+            print(f"[Gmail Sync] Error: {e}")
+            try:
+                account = db.query(Account).filter(Account.id == account_id).first()
+                if account:
+                    account.sync_status = "error"
+                    account.sync_error = str(e)
+                    db.commit()
+            except Exception:
+                pass
+        finally:
+            sync_progress.pop(account_id, None)
+            db.close()
+
     def start_sync(self, account_id: int):
-        thread = threading.Thread(target=self.sync_imap_account, args=(account_id,), daemon=True)
+        """Start sync in background thread, dispatching to gmail or imap."""
+        db = SessionLocal()
+        try:
+            account = db.query(Account).filter(Account.id == account_id).first()
+            if not account:
+                return
+            provider = account.provider
+        finally:
+            db.close()
+
+        if provider == "gmail":
+            target = self.sync_gmail_account
+        else:
+            target = self.sync_imap_account
+
+        thread = threading.Thread(target=target, args=(account_id,), daemon=True)
         thread.start()
 
     def migrate_existing_gmail(self):

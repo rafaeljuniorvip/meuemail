@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeuEmail - OAuth Demo Video</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --border: #334155;
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --primary: #3b82f6;
+            --primary-light: #1e3a5f;
+            --accent: #22c55e;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow: hidden;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .slide {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 80px;
+            position: relative;
+        }
+
+        .slide.active {
+            display: flex;
+        }
+
+        /* Slide counter */
+        .slide-counter {
+            position: fixed;
+            bottom: 24px;
+            right: 32px;
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 500;
+            z-index: 100;
+        }
+
+        .slide-nav-hint {
+            position: fixed;
+            bottom: 24px;
+            left: 32px;
+            font-size: 12px;
+            color: var(--text-muted);
+            z-index: 100;
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--primary);
+            transition: width 0.3s ease;
+            z-index: 100;
+        }
+
+        /* Common elements */
+        .slide-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: var(--primary-light);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 24px;
+        }
+
+        .slide-badge.action {
+            background: rgba(234, 179, 8, 0.1);
+            border-color: rgba(234, 179, 8, 0.3);
+            color: #eab308;
+        }
+
+        .slide-badge.action::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #eab308;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .slide-title {
+            font-size: 48px;
+            font-weight: 800;
+            line-height: 1.15;
+            text-align: center;
+            margin-bottom: 20px;
+            max-width: 900px;
+        }
+
+        .slide-title .highlight {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .slide-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            text-align: center;
+            max-width: 700px;
+            line-height: 1.6;
+        }
+
+        /* Info card */
+        .info-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px 36px;
+            margin-top: 32px;
+            width: 100%;
+            max-width: 700px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: var(--text);
+            font-weight: 600;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        .info-value.url {
+            color: var(--primary);
+        }
+
+        .info-value.scope {
+            color: var(--accent);
+        }
+
+        /* Action slide */
+        .action-icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(234, 179, 8, 0.1);
+            border: 2px solid rgba(234, 179, 8, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 28px;
+            font-size: 36px;
+        }
+
+        .action-steps {
+            margin-top: 28px;
+            text-align: left;
+            max-width: 600px;
+        }
+
+        .action-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 10px 0;
+            font-size: 16px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .action-step .step-num {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            background: var(--primary-light);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Scope explanation */
+        .scope-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px 32px;
+            margin-top: 16px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .scope-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .scope-item:last-child {
+            border-bottom: none;
+        }
+
+        .scope-icon {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .scope-icon.yes {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+        }
+
+        .scope-icon.no {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .scope-text {
+            font-size: 15px;
+            color: var(--text);
+        }
+
+        .scope-text strong {
+            font-weight: 600;
+        }
+
+        .scope-text .muted {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* Final slide */
+        .final-box {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 16px;
+            padding: 32px 48px;
+            margin-top: 32px;
+            text-align: center;
+            max-width: 700px;
+        }
+
+        .final-box p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* Transition */
+        .slide {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress"></div>
+<div class="slide-counter" id="counter"></div>
+<div class="slide-nav-hint">Clique ou use as setas para navegar</div>
+
+<!-- SLIDE 1: Intro -->
+<div class="slide active" id="slide-1">
+    <div class="slide-badge">OAuth Verification Demo</div>
+    <h1 class="slide-title">
+        <span class="highlight">MeuEmail</span><br>
+        OAuth 2.0 Demo
+    </h1>
+    <p class="slide-subtitle">
+        Demonstracao do fluxo de autorizacao OAuth 2.0 e uso do escopo <strong>gmail.readonly</strong> para sincronizacao de emails.
+    </p>
+    <div class="info-card">
+        <div class="info-row">
+            <span class="info-label">Aplicativo</span>
+            <span class="info-value">MeuEmail</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">URL</span>
+            <span class="info-value url">https://meuemail.falavip.com.br</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">OAuth Client ID</span>
+            <span class="info-value" style="font-size:12px">141913349498-dhs39fjojqan4750l7n1ctbt4qfsjtbd.apps.googleusercontent.com</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Escopo</span>
+            <span class="info-value scope">gmail.readonly</span>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 2: Action - Google Cloud Console -->
+<div class="slide" id="slide-2">
+    <div class="slide-badge action">Acao ao vivo</div>
+    <div class="action-icon">&#9881;</div>
+    <h1 class="slide-title" style="font-size:36px">
+        Google Cloud Console
+    </h1>
+    <p class="slide-subtitle">
+        Abrir o Console do Google Cloud e mostrar a configuracao do OAuth Client.
+    </p>
+    <div class="action-steps">
+        <div class="action-step">
+            <span class="step-num">1</span>
+            <span>Abrir <strong>APIs & Services > Credentials</strong></span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">2</span>
+            <span>Mostrar o <strong>OAuth 2.0 Client ID</strong> configurado</span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">3</span>
+            <span>Mostrar a <strong>Tela de Consentimento</strong> (OAuth consent screen)</span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">4</span>
+            <span>Mostrar o escopo <strong>gmail.readonly</strong> configurado</span>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 3: What the app does -->
+<div class="slide" id="slide-3">
+    <div class="slide-badge">Sobre o aplicativo</div>
+    <h1 class="slide-title" style="font-size:36px">
+        O que o <span class="highlight">MeuEmail</span> faz?
+    </h1>
+    <p class="slide-subtitle" style="margin-bottom:24px">
+        Ferramenta de gestao de emails que permite ao usuario sincronizar e consultar seus emails em um painel unificado.
+    </p>
+    <div class="scope-card">
+        <div class="scope-item">
+            <div class="scope-icon yes">&#10003;</div>
+            <div class="scope-text">
+                <strong>Sincronizar emails</strong> do Gmail para consulta local<br>
+                <span class="muted">Baixa cabecalhos, corpo e anexos via Gmail API</span>
+            </div>
+        </div>
+        <div class="scope-item">
+            <div class="scope-icon yes">&#10003;</div>
+            <div class="scope-text">
+                <strong>Pesquisar e filtrar</strong> emails por remetente, data, assunto<br>
+                <span class="muted">Busca rapida em todos os emails sincronizados</span>
+            </div>
+        </div>
+        <div class="scope-item">
+            <div class="scope-icon yes">&#10003;</div>
+            <div class="scope-text">
+                <strong>Ler emails</strong> com corpo completo e anexos<br>
+                <span class="muted">Visualizacao segura do conteudo do email</span>
+            </div>
+        </div>
+        <div class="scope-item">
+            <div class="scope-icon no">&#10007;</div>
+            <div class="scope-text">
+                <strong>Nao envia, modifica ou exclui</strong> nenhum email<br>
+                <span class="muted">Acesso somente leitura (gmail.readonly)</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 4: Action - Login -->
+<div class="slide" id="slide-4">
+    <div class="slide-badge action">Acao ao vivo</div>
+    <div class="action-icon">&#128274;</div>
+    <h1 class="slide-title" style="font-size:36px">
+        Login no Aplicativo
+    </h1>
+    <p class="slide-subtitle">
+        O usuario acessa o app e faz login com sua conta Google.
+    </p>
+    <div class="action-steps">
+        <div class="action-step">
+            <span class="step-num">1</span>
+            <span>Acessar <strong>https://meuemail.falavip.com.br</strong></span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">2</span>
+            <span>Clicar em <strong>"Entrar com Google"</strong></span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">3</span>
+            <span>Selecionar a conta <strong>rafael@viptecnologia.com.br</strong></span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">4</span>
+            <span>Sera redirecionado para o <strong>painel do app</strong></span>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 5: Action - Connect Gmail -->
+<div class="slide" id="slide-5">
+    <div class="slide-badge action">Acao ao vivo</div>
+    <div class="action-icon">&#128231;</div>
+    <h1 class="slide-title" style="font-size:36px">
+        Conectar Conta Gmail
+    </h1>
+    <p class="slide-subtitle">
+        O usuario conecta sua conta Gmail via OAuth para sincronizar emails.
+    </p>
+    <div class="action-steps">
+        <div class="action-step">
+            <span class="step-num">1</span>
+            <span>Ir em <strong>Configuracoes</strong> no menu lateral</span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">2</span>
+            <span>Clicar em <strong>"Adicionar Conta"</strong></span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">3</span>
+            <span>Selecionar provedor <strong>Gmail (OAuth)</strong></span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">4</span>
+            <span>Clicar em <strong>"Conectar com Google"</strong></span>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 6: Consent Screen explanation -->
+<div class="slide" id="slide-6">
+    <div class="slide-badge">Tela de consentimento</div>
+    <h1 class="slide-title" style="font-size:36px">
+        Permissao Solicitada: <span class="highlight">gmail.readonly</span>
+    </h1>
+    <p class="slide-subtitle" style="margin-bottom:24px">
+        O Google mostra ao usuario exatamente quais permissoes o app solicita.
+        O escopo <strong>gmail.readonly</strong> permite apenas <strong>leitura</strong> de emails.
+    </p>
+    <div class="info-card">
+        <div class="info-row">
+            <span class="info-label">Escopo solicitado</span>
+            <span class="info-value scope">googleapis.com/auth/gmail.readonly</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Descricao Google</span>
+            <span class="info-value" style="font-family:var(--font);font-size:13px">Ver suas configuracoes e mensagens de email</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Tipo</span>
+            <span class="info-value" style="font-family:var(--font)">Somente leitura</span>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 7: Action - Consent + Sync -->
+<div class="slide" id="slide-7">
+    <div class="slide-badge action">Acao ao vivo</div>
+    <div class="action-icon">&#128260;</div>
+    <h1 class="slide-title" style="font-size:36px">
+        Autorizar e Sincronizar
+    </h1>
+    <p class="slide-subtitle">
+        O usuario autoriza no Google e o app sincroniza os emails.
+    </p>
+    <div class="action-steps">
+        <div class="action-step">
+            <span class="step-num">1</span>
+            <span>Na tela de consentimento do Google, clicar <strong>"Permitir"</strong></span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">2</span>
+            <span>App redireciona para a tela de <strong>Sincronizacao</strong></span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">3</span>
+            <span>Clicar em <strong>"Sincronizar"</strong> na conta Gmail conectada</span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">4</span>
+            <span>Aguardar a <strong>barra de progresso</strong> completar</span>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 8: Action - Show data usage -->
+<div class="slide" id="slide-8">
+    <div class="slide-badge action">Acao ao vivo</div>
+    <div class="action-icon">&#128269;</div>
+    <h1 class="slide-title" style="font-size:36px">
+        Uso dos Dados
+    </h1>
+    <p class="slide-subtitle">
+        Demonstrar como os emails sincronizados sao utilizados no app.
+    </p>
+    <div class="action-steps">
+        <div class="action-step">
+            <span class="step-num">1</span>
+            <span>Ir em <strong>"Todos os Emails"</strong> - mostrar a lista de emails sincronizados</span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">2</span>
+            <span>Abrir um email para ler o <strong>conteudo completo</strong></span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">3</span>
+            <span>Usar os <strong>filtros de busca</strong> (remetente, assunto, data)</span>
+        </div>
+        <div class="action-step">
+            <span class="step-num">4</span>
+            <span>Mostrar que <strong>nao existe opcao</strong> de enviar, editar ou deletar emails</span>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 9: Summary -->
+<div class="slide" id="slide-9">
+    <div class="slide-badge">Resumo</div>
+    <h1 class="slide-title" style="font-size:40px">
+        Uso do Escopo <span class="highlight">gmail.readonly</span>
+    </h1>
+    <div class="final-box">
+        <p>
+            O aplicativo <strong>MeuEmail</strong> utiliza o escopo <strong>gmail.readonly</strong>
+            exclusivamente para <strong>leitura e sincronizacao</strong> de emails.<br><br>
+            Nenhum email e modificado, enviado ou excluido.<br><br>
+            O escopo <strong>gmail.readonly</strong> e o minimo necessario para esta funcionalidade.
+            Escopos mais restritivos como <strong>gmail.metadata</strong> nao fornecem acesso
+            ao corpo do email, essencial para leitura e busca.
+        </p>
+    </div>
+</div>
+
+<script>
+    const slides = document.querySelectorAll('.slide');
+    const total = slides.length;
+    let current = 0;
+
+    function showSlide(index) {
+        if (index < 0 || index >= total) return;
+        slides[current].classList.remove('active');
+        current = index;
+        slides[current].classList.add('active');
+        document.getElementById('counter').textContent = `${current + 1} / ${total}`;
+        document.getElementById('progress').style.width = `${((current + 1) / total) * 100}%`;
+    }
+
+    function next() { showSlide(current + 1); }
+    function prev() { showSlide(current - 1); }
+
+    // Click to advance
+    document.body.addEventListener('click', (e) => {
+        if (e.clientX < window.innerWidth * 0.25) {
+            prev();
+        } else {
+            next();
+        }
+    });
+
+    // Arrow keys
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === ' ') next();
+        if (e.key === 'ArrowLeft') prev();
+    });
+
+    // Init counter
+    showSlide(0);
+</script>
+
+</body>
+</html>

@@ -13,6 +13,8 @@ from services.auth_service import (
     exchange_code,
     create_jwt,
     is_super_admin,
+    get_gmail_connect_url,
+    exchange_gmail_code,
 )
 
 router = APIRouter(tags=["auth"])
@@ -97,6 +99,78 @@ async def auth_callback(request: Request, code: str = "", db: Session = Depends(
         max_age=72 * 3600,
     )
     return response
+
+
+@router.get("/auth/gmail/connect")
+def gmail_connect(request: Request):
+    """Redirect logged-in user to Google consent for Gmail access."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        return RedirectResponse(url="/login")
+    url = get_gmail_connect_url(state=str(user["id"]))
+    return RedirectResponse(url=url)
+
+
+@router.get("/auth/gmail/callback")
+async def gmail_callback(
+    request: Request,
+    code: str = "",
+    state: str = "",
+    db: Session = Depends(get_db),
+):
+    """Handle Google OAuth callback for Gmail connect. Creates/updates account."""
+    if not code or not state:
+        return RedirectResponse(url="/#/settings?error=gmail_no_code")
+
+    try:
+        user_id = int(state)
+    except (ValueError, TypeError):
+        return RedirectResponse(url="/#/settings?error=gmail_invalid_state")
+
+    try:
+        data = await exchange_gmail_code(code)
+    except Exception as e:
+        print(f"[Gmail Connect] Exchange error: {e}")
+        return RedirectResponse(url="/#/settings?error=gmail_exchange_failed")
+
+    import json
+    from models.account import Account
+
+    gmail_email = data["email"].lower()
+    oauth_token = json.dumps({
+        "refresh_token": data["refresh_token"],
+        "access_token": data["access_token"],
+    })
+
+    # Check if account already exists for this user+email
+    existing = (
+        db.query(Account)
+        .filter(Account.user_id == user_id, Account.email == gmail_email, Account.provider == "gmail")
+        .first()
+    )
+
+    if existing:
+        existing.oauth_token = oauth_token
+        existing.name = data["name"] or existing.name
+        existing.sync_status = "idle"
+        existing.sync_error = None
+        db.commit()
+        print(f"[Gmail Connect] Updated account for {gmail_email} (user_id={user_id})")
+    else:
+        account = Account(
+            name=data["name"] or gmail_email.split("@")[0],
+            email=gmail_email,
+            provider="gmail",
+            oauth_token=oauth_token,
+            is_active=True,
+            sync_status="idle",
+            user_id=user_id,
+        )
+        db.add(account)
+        db.commit()
+        print(f"[Gmail Connect] Created account for {gmail_email} (user_id={user_id})")
+
+    return RedirectResponse(url="/#/sync")
 
 
 @router.get("/auth/me")

@@ -110,7 +110,7 @@ def sync_all_accounts(request: Request, db: Session = Depends(get_db)):
         if a["sync_status"] == "syncing":
             skipped.append(a["id"])
             continue
-        if a["provider"] == "imap":
+        if a["provider"] in ("imap", "gmail"):
             account_service.start_sync(a["id"])
             started.append(a["id"])
 
@@ -161,13 +161,9 @@ def sync_account(account_id: int, db: Session = Depends(get_db)):
     if account["sync_status"] == "syncing":
         return {"status": "already_running"}
 
-    if account["provider"] == "imap":
+    if account["provider"] in ("imap", "gmail"):
         account_service.start_sync(account_id)
         return {"status": "started"}
-    elif account["provider"] == "gmail":
-        # Gmail sync uses existing sync mechanism
-        from routes.emails import sync_emails
-        return sync_emails()
 
     return {"status": "unsupported_provider"}
 

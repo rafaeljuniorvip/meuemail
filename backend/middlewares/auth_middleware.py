@@ -8,6 +8,7 @@ PUBLIC_PATHS = {
     "/login",
     "/auth/login",
     "/auth/callback",
+    "/auth/gmail/callback",
     "/auth/logout",
     "/static",
     "/favicon.ico",

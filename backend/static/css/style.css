@@ -2215,89 +2215,46 @@ a.sender-count:hover {
     display: block;
 }
 
-/* OAuth Guide Card */
-.oauth-guide-card {
-    background: #f8fafc;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
+/* Gmail Connect Card */
+.gmail-connect-card {
+    text-align: center;
+    padding: 24px 16px;
+}
+
+.gmail-connect-text {
+    font-size: 13px;
+    color: var(--text-secondary);
     margin-bottom: 16px;
 }
 
-.oauth-guide-header {
-    display: flex;
+.btn-google-connect {
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    font-size: 13px;
-    color: var(--primary);
-    margin-bottom: 8px;
-}
-
-.oauth-guide-text {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-bottom: 10px;
-}
-
-.oauth-guide-steps {
-    font-size: 13px;
-    color: var(--text);
-    padding-left: 20px;
-    margin: 0;
-}
-
-.oauth-guide-steps li {
-    margin-bottom: 6px;
-    line-height: 1.5;
-}
-
-.oauth-guide-steps a {
-    color: var(--primary);
-    font-weight: 500;
-    text-decoration: none;
-}
-
-.oauth-guide-steps a:hover {
-    text-decoration: underline;
-}
-
-.oauth-guide-steps code {
-    background: #e8edf2;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 12px;
-    font-family: monospace;
-}
-
-.oauth-callback-url {
-    display: inline-block;
-    margin-top: 4px;
-    background: #e3f2fd;
-    color: var(--primary);
-    padding: 3px 8px;
+    gap: 10px;
+    padding: 10px 24px;
+    background: #fff;
+    border: 1px solid #dadce0;
     border-radius: 4px;
-    font-size: 12px;
-    user-select: all;
+    color: #3c4043;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: box-shadow 0.2s;
+    font-family: var(--font);
 }
 
-.oauth-guide-warning {
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
+.btn-google-connect:hover {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    text-decoration: none;
+    color: #3c4043;
+}
+
+.gmail-connect-hint {
+    display: block;
     margin-top: 12px;
-    padding: 8px 10px;
-    background: #fff8e1;
-    border: 1px solid #ffe082;
-    border-radius: 6px;
     font-size: 12px;
-    color: #e65100;
-    line-height: 1.4;
-}
-
-.oauth-guide-warning svg {
-    flex-shrink: 0;
-    margin-top: 1px;
+    color: var(--text-muted);
 }
 
 .imap-row {

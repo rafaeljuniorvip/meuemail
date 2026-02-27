@@ -1364,10 +1364,6 @@ function showAddAccountModal() {
     document.getElementById('account-imap-password').value = '';
     document.getElementById('account-imap-ssl').checked = true;
     document.getElementById('test-connection-result').textContent = '';
-    const gmailClientId = document.getElementById('account-gmail-client-id');
-    const gmailClientSecret = document.getElementById('account-gmail-client-secret');
-    if (gmailClientId) gmailClientId.value = '';
-    if (gmailClientSecret) gmailClientSecret.value = '';
     toggleImapFields();
     document.getElementById('account-modal').classList.add('visible');
 }
@@ -1380,19 +1376,29 @@ function toggleImapFields() {
     const provider = document.getElementById('account-provider').value;
     const imapFields = document.getElementById('imap-fields');
     const gmailFields = document.getElementById('gmail-fields');
+    const nameField = document.getElementById('account-name-field');
+    const emailField = document.getElementById('account-email-field');
+    const saveBtn = document.getElementById('account-save-btn');
+    const isEditing = !!document.getElementById('account-edit-id').value;
 
     if (provider === 'imap') {
         imapFields.classList.add('visible');
         if (gmailFields) gmailFields.classList.remove('visible');
+        if (nameField) nameField.style.display = '';
+        if (emailField) emailField.style.display = '';
+        if (saveBtn) saveBtn.style.display = '';
     } else {
         imapFields.classList.remove('visible');
-        if (gmailFields) {
-            gmailFields.classList.add('visible');
-            // Set callback URL dynamically
-            const callbackEl = document.getElementById('oauth-callback-url');
-            if (callbackEl) {
-                callbackEl.textContent = `${location.origin}/auth/google/callback`;
-            }
+        if (gmailFields) gmailFields.classList.add('visible');
+        // For new Gmail accounts, hide name/email/save (user goes through OAuth)
+        if (!isEditing) {
+            if (nameField) nameField.style.display = 'none';
+            if (emailField) emailField.style.display = 'none';
+            if (saveBtn) saveBtn.style.display = 'none';
+        } else {
+            if (nameField) nameField.style.display = '';
+            if (emailField) emailField.style.display = '';
+            if (saveBtn) saveBtn.style.display = '';
         }
     }
 }
