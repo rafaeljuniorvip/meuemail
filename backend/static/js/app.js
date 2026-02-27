@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNav();
     setupChatInput();
     restoreSidebarState();
+    showSidebarLoading();
     window.addEventListener('hashchange', handleRoute);
 });
 
@@ -94,6 +95,10 @@ function handleRoute() {
     } else if (segments[0] === 'query' && segments[1]) {
         showPage('query-results');
         loadQueryResults(segments[1]);
+    } else if (segments[0] === 'sync') {
+        showPage('sync');
+        document.querySelector('.nav-item[data-page="sync"]')?.classList.add('active');
+        loadSyncStatus();
     } else if (segments[0] === 'settings') {
         showPage('settings');
         document.querySelector('.nav-item[data-page="settings"]')?.classList.add('active');
@@ -235,15 +240,15 @@ function updateAuthUI(data) {
     const syncBtn = document.getElementById('btn-sync');
 
     if (data.authenticated || data.status === 'ok') {
-        dot.classList.add('connected');
-        email.textContent = data.email || 'Conectado';
-        connectBtn.style.display = 'none';
-        syncBtn.style.display = 'inline-flex';
+        if (dot) dot.classList.add('connected');
+        if (email) email.textContent = data.email || 'Conectado';
+        if (connectBtn) connectBtn.style.display = 'none';
+        if (syncBtn) syncBtn.style.display = 'inline-flex';
     } else {
-        dot.classList.remove('connected');
-        email.textContent = 'Desconectado';
-        connectBtn.style.display = 'inline-flex';
-        syncBtn.style.display = 'none';
+        if (dot) dot.classList.remove('connected');
+        if (email) email.textContent = 'Desconectado';
+        if (connectBtn) connectBtn.style.display = 'inline-flex';
+        if (syncBtn) syncBtn.style.display = 'none';
     }
 }
 
@@ -567,7 +572,16 @@ async function loadStats() {
 }
 
 // ===== SIDEBAR =====
+function showSidebarLoading() {
+    const skeleton = '<div class="sidebar-skeleton"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>';
+    const labels = document.getElementById('sidebar-labels');
+    const senders = document.getElementById('sidebar-senders');
+    if (labels && !labels.innerHTML.trim()) labels.innerHTML = skeleton;
+    if (senders && !senders.innerHTML.trim()) senders.innerHTML = skeleton;
+}
+
 async function loadSidebar() {
+    showSidebarLoading();
     try {
         const statsParams = state.accountId ? `?account_id=${state.accountId}` : '';
         const res = await fetch(`${API}/api/emails/stats${statsParams}`);
@@ -1970,5 +1984,188 @@ async function importSelectedIRedMail() {
         loadAccounts();
     } catch (e) {
         showToast('Erro na importacao: ' + e.message, 'error');
+    }
+}
+
+// ===== SYNC STATUS PAGE =====
+let syncPagePollInterval = null;
+
+function timeAgo(dateStr) {
+    if (!dateStr) return 'Nunca';
+    const now = new Date();
+    const d = new Date(dateStr);
+    const diffMs = now - d;
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 30) return 'agora';
+    if (diffSec < 60) return `ha ${diffSec}s`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `ha ${diffMin} min`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `ha ${diffHr} hora${diffHr > 1 ? 's' : ''}`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `ha ${diffDay} dia${diffDay > 1 ? 's' : ''}`;
+}
+
+async function loadSyncStatus() {
+    // Clear any previous polling
+    if (syncPagePollInterval) {
+        clearInterval(syncPagePollInterval);
+        syncPagePollInterval = null;
+    }
+
+    try {
+        const res = await fetch(`${API}/api/accounts/sync/all-status`);
+        const accounts = await res.json();
+        renderSyncTable(accounts);
+        startSyncPagePolling(accounts.some(a => a.sync_status === 'syncing'));
+    } catch (e) {
+        console.error('Failed to load sync status:', e);
+    }
+}
+
+function startSyncPagePolling(isSyncing) {
+    if (syncPagePollInterval) {
+        clearInterval(syncPagePollInterval);
+        syncPagePollInterval = null;
+    }
+    const interval = isSyncing ? 2000 : 30000;
+
+    syncPagePollInterval = setInterval(async () => {
+        const hash = location.hash || '';
+        if (!hash.includes('sync')) {
+            clearInterval(syncPagePollInterval);
+            syncPagePollInterval = null;
+            return;
+        }
+        try {
+            const r = await fetch(`${API}/api/accounts/sync/all-status`);
+            const accs = await r.json();
+            renderSyncTable(accs);
+
+            const nowSyncing = accs.some(a => a.sync_status === 'syncing');
+            if (nowSyncing !== isSyncing) {
+                startSyncPagePolling(nowSyncing);
+            }
+        } catch (e) {}
+    }, interval);
+}
+
+function renderSyncTable(accounts) {
+    const container = document.getElementById('sync-accounts-list');
+    if (!container) return;
+
+    if (accounts.length === 0) {
+        container.innerHTML = '<div class="card" style="text-align:center;padding:40px;color:var(--text-muted);">Nenhuma conta configurada. Adicione contas em Configuracoes.</div>';
+        return;
+    }
+
+    container.innerHTML = accounts.map(a => {
+        const statusClass = a.sync_status || 'idle';
+        const statusLabel = {syncing: 'Sincronizando', idle: 'Parado', error: 'Erro'}[statusClass] || statusClass;
+
+        let progressHtml = '';
+        if (a.sync_status === 'syncing' && a.progress) {
+            const p = a.progress;
+            let pct = 0;
+            if (p.status === 'connecting') {
+                progressHtml = `
+                    <div class="sync-progress-bar"><div class="sync-progress-fill indeterminate"></div></div>
+                    <div class="sync-folder-info">Conectando...</div>`;
+            } else {
+                pct = p.total > 0 ? Math.round((p.synced / p.total) * 100) : 0;
+                progressHtml = `
+                    <div class="sync-progress-bar"><div class="sync-progress-fill" style="width:${pct}%"></div></div>
+                    <div class="sync-folder-info">${escapeHtml(p.folder)}: ${p.synced}/${p.total} (pasta ${p.folders_done + 1}/${p.folders_total})</div>`;
+            }
+        } else if (a.sync_status === 'syncing') {
+            progressHtml = `
+                <div class="sync-progress-bar"><div class="sync-progress-fill indeterminate"></div></div>
+                <div class="sync-folder-info">Sincronizando...</div>`;
+        }
+
+        const errorHtml = a.sync_status === 'error' && a.sync_error
+            ? `<div class="sync-error-msg">${escapeHtml(a.sync_error)}</div>` : '';
+
+        const syncBtnClass = a.sync_status === 'syncing' ? 'btn-sync-spinning' : '';
+        const syncBtnDisabled = a.sync_status === 'syncing' ? 'disabled' : '';
+
+        return `<div class="sync-account-card">
+            <div class="sync-account-main">
+                <div class="sync-account-info">
+                    <div class="sync-status-dot ${statusClass}"></div>
+                    <div>
+                        <div class="sync-account-name">${escapeHtml(a.name)}</div>
+                        <div class="sync-account-email">${escapeHtml(a.email)}</div>
+                    </div>
+                </div>
+                <span class="account-provider-badge ${a.provider}">${a.provider.toUpperCase()}</span>
+                <div class="sync-account-stats">
+                    <div class="sync-stat">
+                        <span class="sync-stat-value">${(a.email_count || 0).toLocaleString()}</span>
+                        <span class="sync-stat-label">emails</span>
+                    </div>
+                    <div class="sync-stat">
+                        <span class="sync-stat-value">${timeAgo(a.last_sync_at)}</span>
+                        <span class="sync-stat-label">ultimo sync</span>
+                    </div>
+                </div>
+                <div class="sync-account-status">
+                    <span class="sync-status-badge ${statusClass}">${statusLabel}</span>
+                </div>
+                <button class="btn btn-sm btn-outline ${syncBtnClass}" onclick="syncSingleAccount(${a.id})" ${syncBtnDisabled}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                        <polyline points="23 4 23 10 17 10"/>
+                        <polyline points="1 20 1 14 7 14"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    Sincronizar
+                </button>
+            </div>
+            ${progressHtml}
+            ${errorHtml}
+        </div>`;
+    }).join('');
+}
+
+async function syncAllAccounts() {
+    try {
+        const btn = document.getElementById('btn-sync-all');
+        btn.disabled = true;
+        btn.textContent = 'Iniciando...';
+
+        const res = await fetch(`${API}/api/accounts/sync/all`, { method: 'POST' });
+        const data = await res.json();
+
+        const total = data.started.length + data.skipped.length;
+        if (data.started.length > 0) {
+            showToast(`Sync iniciado em ${data.started.length} conta(s)`, 'info');
+        }
+        if (data.skipped.length > 0) {
+            showToast(`${data.skipped.length} conta(s) ja sincronizando`, 'info');
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Sincronizar Todas';
+
+        // Restart polling with fast interval
+        loadSyncStatus();
+    } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+async function syncSingleAccount(id) {
+    try {
+        const res = await fetch(`${API}/api/accounts/${id}/sync`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'started') {
+            showToast('Sincronizacao iniciada', 'info');
+        } else if (data.status === 'already_running') {
+            showToast('Ja em andamento', 'info');
+        }
+        // Restart polling with fast interval
+        loadSyncStatus();
+    } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
     }
 }

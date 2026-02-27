@@ -15,6 +15,9 @@ from services.imap_service import ImapService, encrypt_password, decrypt_passwor
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 TOKEN_FILE = PROJECT_ROOT / "token.json"
 
+# Granular sync progress: {account_id: {"status", "folder", "folders_done", "folders_total", "total", "synced", "skipped"}}
+sync_progress = {}
+
 
 class AccountService:
 
@@ -150,6 +153,16 @@ class AccountService:
             account.sync_error = None
             db.commit()
 
+            sync_progress[account_id] = {
+                "status": "connecting",
+                "folder": "",
+                "folders_done": 0,
+                "folders_total": 0,
+                "total": 0,
+                "synced": 0,
+                "skipped": 0,
+            }
+
             password = decrypt_password(account.imap_password_encrypted) if account.imap_password_encrypted else ""
             svc = ImapService(
                 host=account.imap_host,
@@ -165,8 +178,14 @@ class AccountService:
             if not target_folders:
                 target_folders = ["INBOX"]
 
+            sync_progress[account_id]["status"] = "syncing"
+            sync_progress[account_id]["folders_total"] = len(target_folders)
+
             total_synced = 0
-            for folder in target_folders:
+            for folder_idx, folder in enumerate(target_folders):
+                sync_progress[account_id]["folder"] = folder
+                sync_progress[account_id]["folders_done"] = folder_idx
+
                 try:
                     uids = svc.fetch_email_ids(folder=folder)
                     if not uids:
@@ -179,6 +198,11 @@ class AccountService:
                         db.query(Email.gmail_id).filter(Email.gmail_id.in_(uid_strs)).all()
                     )
                     new_uids = [uid for uid in uids if f"imap_{uid.decode()}" not in existing]
+                    skipped = len(uids) - len(new_uids)
+
+                    sync_progress[account_id]["total"] = len(new_uids)
+                    sync_progress[account_id]["synced"] = 0
+                    sync_progress[account_id]["skipped"] = skipped
 
                     if not new_uids:
                         continue
@@ -213,9 +237,12 @@ class AccountService:
                             total_synced += 1
 
                         db.commit()
+                        sync_progress[account_id]["synced"] = min(i + batch_size, len(new_uids))
                 except Exception as e:
                     print(f"[IMAP Sync] Error syncing folder {folder}: {e}")
                     continue
+
+            sync_progress[account_id]["folders_done"] = len(target_folders)
 
             svc.disconnect()
             account.sync_status = "idle"
@@ -234,6 +261,7 @@ class AccountService:
             except Exception:
                 pass
         finally:
+            sync_progress.pop(account_id, None)
             db.close()
 
     def start_sync(self, account_id: int):

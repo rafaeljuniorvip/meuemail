@@ -2,10 +2,12 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from config.database import get_db
-from services.account_service import account_service
+from models.email import Email
+from services.account_service import account_service, sync_progress
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -60,6 +62,59 @@ def create_account(body: AccountCreate, request: Request, db: Session = Depends(
     data["user_id"] = user.get("id")
     result = account_service.create_account(db, data)
     return result
+
+
+@router.get("/sync/all-status")
+def sync_all_status(request: Request, db: Session = Depends(get_db)):
+    """Get sync status for all user accounts with progress and email counts."""
+    user = get_current_user(request)
+    accounts = account_service.get_all_accounts(db, user_id=user.get("id"))
+
+    # Get email counts per account
+    counts = dict(
+        db.query(Email.account_id, func.count(Email.id))
+        .filter(Email.user_id == user.get("id"))
+        .group_by(Email.account_id)
+        .all()
+    )
+
+    result = []
+    for a in accounts:
+        entry = {
+            "id": a["id"],
+            "name": a["name"],
+            "email": a["email"],
+            "provider": a["provider"],
+            "is_active": a["is_active"],
+            "sync_status": a["sync_status"],
+            "sync_error": a["sync_error"],
+            "last_sync_at": a["last_sync_at"],
+            "email_count": counts.get(a["id"], 0),
+            "progress": sync_progress.get(a["id"]),
+        }
+        result.append(entry)
+    return result
+
+
+@router.post("/sync/all")
+def sync_all_accounts(request: Request, db: Session = Depends(get_db)):
+    """Start sync for all active IMAP accounts of the user."""
+    user = get_current_user(request)
+    accounts = account_service.get_all_accounts(db, user_id=user.get("id"))
+
+    started = []
+    skipped = []
+    for a in accounts:
+        if not a["is_active"]:
+            continue
+        if a["sync_status"] == "syncing":
+            skipped.append(a["id"])
+            continue
+        if a["provider"] == "imap":
+            account_service.start_sync(a["id"])
+            started.append(a["id"])
+
+    return {"started": started, "skipped": skipped}
 
 
 @router.get("/{account_id}")

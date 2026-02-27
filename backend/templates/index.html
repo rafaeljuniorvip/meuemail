@@ -67,6 +67,15 @@
 
             <div class="sidebar-divider"></div>
 
+            <div class="nav-item" data-page="sync">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                <span>Sincronizacao</span>
+            </div>
+
             <div class="nav-item" data-page="settings">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="3"/>
@@ -544,6 +553,24 @@
                 </div>
                 <div id="accounts-list"></div>
             </div>
+        </div>
+
+        <!-- Page: Sync -->
+        <div id="page-sync" class="page">
+            <div class="header-bar">
+                <h2>Sincronizacao</h2>
+                <div class="header-actions">
+                    <button class="btn btn-primary" id="btn-sync-all" onclick="syncAllAccounts()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <polyline points="1 20 1 14 7 14"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                        Sincronizar Todas
+                    </button>
+                </div>
+            </div>
+            <div id="sync-accounts-list"></div>
         </div>
 
         <!-- Page: Email Detail -->

@@ -144,6 +144,28 @@ body {
     max-height: 0;
 }
 
+/* Sidebar skeleton loading */
+.sidebar-skeleton {
+    padding: 6px 20px;
+}
+
+.skeleton-line {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    margin-bottom: 10px;
+    animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-line.short {
+    width: 60%;
+}
+
+@keyframes skeletonShimmer {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+}
+
 .sidebar-divider {
     margin: 8px 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -2369,4 +2391,166 @@ a.sender-count:hover {
     background: #fff3e0;
     color: #e65100;
     font-weight: 500;
+}
+
+/* ===== Sync Status Page ===== */
+.sync-account-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+}
+
+.sync-account-main {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.sync-account-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 200px;
+}
+
+.sync-account-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.sync-account-email {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.sync-account-stats {
+    display: flex;
+    gap: 24px;
+    margin-left: auto;
+}
+
+.sync-stat {
+    text-align: center;
+}
+
+.sync-stat-value {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.sync-stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sync-account-status {
+    min-width: 110px;
+    text-align: center;
+}
+
+.sync-status-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.sync-status-badge.idle {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.sync-status-badge.syncing {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.sync-status-badge.error {
+    background: #fce4ec;
+    color: #c62828;
+}
+
+.sync-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.sync-status-dot.idle {
+    background: #94a3b8;
+}
+
+.sync-status-dot.syncing {
+    background: #4caf50;
+    animation: syncPulse 1.5s ease-in-out infinite;
+}
+
+.sync-status-dot.error {
+    background: #ef5350;
+}
+
+@keyframes syncPulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(76, 175, 80, 0); }
+}
+
+.sync-progress-bar {
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    margin-top: 12px;
+    overflow: hidden;
+}
+
+.sync-progress-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.sync-progress-fill.indeterminate {
+    width: 30%;
+    animation: syncIndeterminate 1.5s ease-in-out infinite;
+}
+
+@keyframes syncIndeterminate {
+    0% { margin-left: 0; }
+    50% { margin-left: 70%; }
+    100% { margin-left: 0; }
+}
+
+.sync-folder-info {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.sync-error-msg {
+    font-size: 12px;
+    color: var(--danger);
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: #fce4ec;
+    border-radius: 4px;
+}
+
+.btn-sync-spinning svg {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
