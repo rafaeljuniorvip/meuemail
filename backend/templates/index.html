@@ -685,6 +685,41 @@
                 <label>Email</label>
                 <input type="email" id="account-email" placeholder="usuario@exemplo.com">
             </div>
+            <div class="gmail-fields" id="gmail-fields">
+                <div class="oauth-guide-card">
+                    <div class="oauth-guide-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                        <span>Configuracao OAuth 2.0 necessaria</span>
+                    </div>
+                    <p class="oauth-guide-text">Para conectar contas Gmail, configure as credenciais OAuth no Google Cloud:</p>
+                    <ol class="oauth-guide-steps">
+                        <li>Acesse o <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console</a></li>
+                        <li>Crie ou selecione um projeto</li>
+                        <li>Ative a <a href="https://console.cloud.google.com/apis/library/gmail.googleapis.com" target="_blank" rel="noopener">Gmail API</a></li>
+                        <li>Va em <strong>Credenciais</strong> &rarr; <strong>Criar credencial</strong> &rarr; <strong>ID do cliente OAuth 2.0</strong></li>
+                        <li>Tipo: <strong>Aplicativo Web</strong>, adicione a URI de callback:<br>
+                            <code class="oauth-callback-url" id="oauth-callback-url"></code>
+                        </li>
+                        <li>Configure a <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" rel="noopener">Tela de Consentimento</a> com o escopo <code>https://mail.google.com/</code></li>
+                    </ol>
+                    <div class="oauth-guide-warning">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        Em modo "Em Teste", refresh tokens expiram em 7 dias. Publique o app para tokens permanentes.
+                    </div>
+                </div>
+                <div class="modal-field">
+                    <label>Client ID</label>
+                    <input type="text" id="account-gmail-client-id" placeholder="xxxx.apps.googleusercontent.com">
+                </div>
+                <div class="modal-field">
+                    <label>Client Secret</label>
+                    <input type="password" id="account-gmail-client-secret" placeholder="GOCSPX-...">
+                </div>
+            </div>
             <div class="imap-fields" id="imap-fields">
                 <div class="imap-row">
                     <div class="modal-field">

@@ -1364,6 +1364,10 @@ function showAddAccountModal() {
     document.getElementById('account-imap-password').value = '';
     document.getElementById('account-imap-ssl').checked = true;
     document.getElementById('test-connection-result').textContent = '';
+    const gmailClientId = document.getElementById('account-gmail-client-id');
+    const gmailClientSecret = document.getElementById('account-gmail-client-secret');
+    if (gmailClientId) gmailClientId.value = '';
+    if (gmailClientSecret) gmailClientSecret.value = '';
     toggleImapFields();
     document.getElementById('account-modal').classList.add('visible');
 }
@@ -1375,10 +1379,21 @@ function closeAccountModal() {
 function toggleImapFields() {
     const provider = document.getElementById('account-provider').value;
     const imapFields = document.getElementById('imap-fields');
+    const gmailFields = document.getElementById('gmail-fields');
+
     if (provider === 'imap') {
         imapFields.classList.add('visible');
+        if (gmailFields) gmailFields.classList.remove('visible');
     } else {
         imapFields.classList.remove('visible');
+        if (gmailFields) {
+            gmailFields.classList.add('visible');
+            // Set callback URL dynamically
+            const callbackEl = document.getElementById('oauth-callback-url');
+            if (callbackEl) {
+                callbackEl.textContent = `${location.origin}/auth/google/callback`;
+            }
+        }
     }
 }
 
