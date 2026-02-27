@@ -406,32 +406,36 @@ def sync_status():
 
 @router.post("/emails/delete")
 def delete_emails(request: DeleteRequest, http_request: Request = None, db: Session = Depends(get_db)):
-    if not gmail_service.is_authenticated():
-        raise HTTPException(status_code=401, detail="Gmail não conectado")
-
     if not request.gmail_ids:
         raise HTTPException(status_code=400, detail="Nenhum email selecionado")
 
-    result = gmail_service.delete_emails(request.gmail_ids)
+    # Try to delete from Gmail API if authenticated (only affects Gmail emails)
+    gmail_deleted = 0
+    gmail_errors = []
+    if gmail_service.is_authenticated():
+        # Only send actual Gmail IDs (not imap_ prefixed)
+        gmail_ids = [gid for gid in request.gmail_ids if not gid.startswith("imap_")]
+        if gmail_ids:
+            result = gmail_service.delete_emails(gmail_ids)
+            gmail_deleted = result["deleted"]
+            gmail_errors = result["errors"]
 
-    db.query(Email).filter(Email.gmail_id.in_(request.gmail_ids)).delete(
+    # Always delete from local database
+    deleted_local = db.query(Email).filter(Email.gmail_id.in_(request.gmail_ids)).delete(
         synchronize_session=False
     )
     db.commit()
 
     return {
         "status": "ok",
-        "deleted_gmail": result["deleted"],
-        "deleted_local": len(request.gmail_ids),
-        "errors": result["errors"],
+        "deleted_gmail": gmail_deleted,
+        "deleted_local": deleted_local,
+        "errors": gmail_errors,
     }
 
 
 @router.post("/emails/delete-by-filter")
 def delete_by_filter(request: DeleteByFilterRequest, db: Session = Depends(get_db)):
-    if not gmail_service.is_authenticated():
-        raise HTTPException(status_code=401, detail="Gmail não conectado")
-
     query = db.query(Email)
 
     if request.sender_email:
@@ -459,21 +463,29 @@ def delete_by_filter(request: DeleteByFilterRequest, db: Session = Depends(get_d
         query = query.filter(Email.size_estimate >= request.min_size)
 
     emails = query.all()
-    gmail_ids = [e.gmail_id for e in emails]
+    all_ids = [e.gmail_id for e in emails]
 
-    if not gmail_ids:
+    if not all_ids:
         return {"status": "ok", "deleted": 0}
 
-    result = gmail_service.delete_emails(gmail_ids)
+    # Only try Gmail API for non-IMAP emails
+    gmail_deleted = 0
+    gmail_errors = []
+    if gmail_service.is_authenticated():
+        gmail_ids = [gid for gid in all_ids if not gid.startswith("imap_")]
+        if gmail_ids:
+            result = gmail_service.delete_emails(gmail_ids)
+            gmail_deleted = result["deleted"]
+            gmail_errors = result["errors"]
 
     query.delete(synchronize_session=False)
     db.commit()
 
     return {
         "status": "ok",
-        "deleted_gmail": result["deleted"],
-        "deleted_local": len(gmail_ids),
-        "errors": result["errors"],
+        "deleted_gmail": gmail_deleted,
+        "deleted_local": len(all_ids),
+        "errors": gmail_errors,
     }
 
 
