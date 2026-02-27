@@ -1500,7 +1500,7 @@ async function editAccount(id) {
 }
 
 async function deleteAccount(id, name) {
-    if (!confirm(`Remover a conta "${name}"? Os emails sincronizados serão mantidos.`)) return;
+    if (!confirm(`Remover a conta "${name}"?\n\nTodos os emails sincronizados desta conta também serão apagados.`)) return;
     try {
         const res = await fetch(`${API}/api/accounts/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Erro ao remover');

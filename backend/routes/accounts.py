@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -135,8 +135,8 @@ def update_account(account_id: int, body: AccountUpdate, db: Session = Depends(g
 
 
 @router.delete("/{account_id}")
-def delete_account(account_id: int, delete_emails: bool = Query(False), db: Session = Depends(get_db)):
-    success = account_service.delete_account(db, account_id, delete_emails=delete_emails)
+def delete_account(account_id: int, db: Session = Depends(get_db)):
+    success = account_service.delete_account(db, account_id)
     if not success:
         raise HTTPException(status_code=404, detail="Conta não encontrada")
     return {"status": "ok"}

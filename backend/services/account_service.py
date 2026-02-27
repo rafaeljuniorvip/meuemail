@@ -86,13 +86,13 @@ class AccountService:
         db.refresh(account)
         return self._account_to_dict(account)
 
-    def delete_account(self, db: Session, account_id: int, delete_emails: bool = False) -> bool:
+    def delete_account(self, db: Session, account_id: int) -> bool:
         account = db.query(Account).filter(Account.id == account_id).first()
         if not account:
             return False
 
-        if delete_emails:
-            db.query(Email).filter(Email.account_id == account_id).delete(synchronize_session=False)
+        # Always delete associated emails to avoid orphans
+        db.query(Email).filter(Email.account_id == account_id).delete(synchronize_session=False)
 
         db.delete(account)
         db.commit()
