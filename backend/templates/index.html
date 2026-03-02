@@ -76,12 +76,21 @@
                 <span>Sincronizacao</span>
             </div>
 
-            <div class="nav-item" data-page="settings">
+            <div class="nav-item" data-page="settings/agent">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="3"/>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                 </svg>
-                <span>Configurações</span>
+                <span>Config. Agente</span>
+            </div>
+
+            <div class="nav-item" data-page="settings/accounts">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 4h16v16H4z"/>
+                    <path d="M4 9h16"/>
+                    <path d="M9 4v16"/>
+                </svg>
+                <span>Contas de Email</span>
             </div>
 
             <div class="nav-item admin-only" data-page="users" id="nav-users" style="display:none;">
@@ -425,10 +434,13 @@
             </div><!-- /chat-layout -->
         </div>
 
-        <!-- Page: Settings -->
-        <div id="page-settings" class="page">
+        <!-- Page: Settings Agent -->
+        <div id="page-settings-agent" class="page">
             <div class="header-bar">
-                <h2>Configurações</h2>
+                <h2>Configuração do Agente</h2>
+                <div class="header-actions">
+                    <a class="btn btn-outline" href="#/settings/accounts">Ir para Contas de Email</a>
+                </div>
             </div>
 
             <!-- AI Config Card -->
@@ -480,6 +492,62 @@
                                 <option value="false">Não</option>
                             </select>
                         </div>
+                        <div class="filter-group">
+                            <label>Provedor</label>
+                            <select id="models-provider-filter" onchange="filterModels()">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Agrupar</label>
+                            <select id="models-group-by" onchange="filterModels()">
+                                <option value="none">Sem agrupamento</option>
+                                <option value="provider">Por provedor</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="models-filters models-filters-secondary">
+                        <div class="filter-group">
+                            <label>Contexto mín.</label>
+                            <select id="models-min-context-filter" onchange="filterModels()">
+                                <option value="">Qualquer</option>
+                                <option value="32768">32K</option>
+                                <option value="65536">64K</option>
+                                <option value="131072">128K</option>
+                                <option value="262144">256K</option>
+                                <option value="1048576">1M</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>$/Prompt máx. (por 1M)</label>
+                            <input type="number" id="models-max-prompt-price" min="0" step="0.01" placeholder="Ex: 2.00" oninput="filterModels()">
+                        </div>
+                        <div class="filter-group">
+                            <label>$/Completion máx. (por 1M)</label>
+                            <input type="number" id="models-max-completion-price" min="0" step="0.01" placeholder="Ex: 6.00" oninput="filterModels()">
+                        </div>
+                        <div class="filter-group">
+                            <label>Criado em</label>
+                            <select id="models-created-filter" onchange="filterModels()">
+                                <option value="">Qualquer data</option>
+                                <option value="30">Últimos 30 dias</option>
+                                <option value="90">Últimos 90 dias</option>
+                                <option value="365">Últimos 12 meses</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Limite na tabela</label>
+                            <select id="models-limit" onchange="filterModels()">
+                                <option value="100">100</option>
+                                <option value="200" selected>200</option>
+                                <option value="500">500</option>
+                                <option value="1000">1000</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-outline" onclick="resetModelsFilters()">Limpar filtros</button>
+                        </div>
                     </div>
                     <div class="models-info" id="models-info"></div>
                     <div class="table-container">
@@ -487,18 +555,28 @@
                             <thead>
                                 <tr>
                                     <th style="width:60px"></th>
-                                    <th class="sortable-model" onclick="sortModels('name')">Nome</th>
-                                    <th class="sortable-model" onclick="sortModels('provider')">Provedor</th>
-                                    <th class="sortable-model" onclick="sortModels('context_length')">Contexto</th>
-                                    <th class="sortable-model" onclick="sortModels('pricing_prompt')">$/Prompt</th>
-                                    <th class="sortable-model" onclick="sortModels('pricing_completion')">$/Completion</th>
-                                    <th class="sortable-model" onclick="sortModels('supports_tools')">Tools</th>
-                                    <th class="sortable-model" onclick="sortModels('created')">Criado</th>
+                                    <th class="sortable-model" data-sort="name" onclick="sortModels('name')">Nome</th>
+                                    <th class="sortable-model" data-sort="provider" onclick="sortModels('provider')">Provedor</th>
+                                    <th class="sortable-model" data-sort="context_length" onclick="sortModels('context_length')">Contexto</th>
+                                    <th class="sortable-model" data-sort="pricing_prompt" onclick="sortModels('pricing_prompt')">$/Prompt</th>
+                                    <th class="sortable-model" data-sort="pricing_completion" onclick="sortModels('pricing_completion')">$/Completion</th>
+                                    <th class="sortable-model" data-sort="supports_tools" onclick="sortModels('supports_tools')">Tools</th>
+                                    <th class="sortable-model" data-sort="created" onclick="sortModels('created')">Criado</th>
                                 </tr>
                             </thead>
                             <tbody id="models-tbody"></tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: Settings Accounts -->
+        <div id="page-settings-accounts" class="page">
+            <div class="header-bar">
+                <h2>Contas de Email</h2>
+                <div class="header-actions">
+                    <a class="btn btn-outline" href="#/settings/agent">Ir para Config. do Agente</a>
                 </div>
             </div>
 

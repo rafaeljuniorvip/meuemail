@@ -165,6 +165,14 @@ class GmailService:
             except Exception:
                 date = None
 
+        # Fallback: use internalDate from Gmail API (always available, ms timestamp)
+        if date is None and msg.get("internalDate"):
+            try:
+                from datetime import datetime, timezone
+                date = datetime.fromtimestamp(int(msg["internalDate"]) / 1000, tz=timezone.utc)
+            except Exception:
+                pass
+
         labels = msg.get("labelIds", [])
         is_read = "UNREAD" not in labels
 

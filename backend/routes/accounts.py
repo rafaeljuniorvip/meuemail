@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -65,7 +65,11 @@ def create_account(body: AccountCreate, request: Request, db: Session = Depends(
 
 
 @router.get("/sync/all-status")
-def sync_all_status(request: Request, db: Session = Depends(get_db)):
+def sync_all_status(
+    request: Request,
+    include_connection: bool = Query(False),
+    db: Session = Depends(get_db),
+):
     """Get sync status for all user accounts with progress and email counts."""
     user = get_current_user(request)
     accounts = account_service.get_all_accounts(db, user_id=user.get("id"))
@@ -91,7 +95,13 @@ def sync_all_status(request: Request, db: Session = Depends(get_db)):
             "last_sync_at": a["last_sync_at"],
             "email_count": counts.get(a["id"], 0),
             "progress": sync_progress.get(a["id"]),
+            "connection_ok": None,
+            "connection_message": None,
         }
+        if include_connection:
+            check = account_service.test_account_connection(db, a["id"])
+            entry["connection_ok"] = bool(check.get("success"))
+            entry["connection_message"] = check.get("message")
         result.append(entry)
     return result
 

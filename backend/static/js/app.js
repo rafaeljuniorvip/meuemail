@@ -100,11 +100,17 @@ function handleRoute() {
         document.querySelector('.nav-item[data-page="sync"]')?.classList.add('active');
         loadSyncStatus();
     } else if (segments[0] === 'settings') {
-        showPage('settings');
-        document.querySelector('.nav-item[data-page="settings"]')?.classList.add('active');
-        loadAiConfig();
-        loadAccounts();
-        loadIRedMailConfig();
+        if (segments[1] === 'accounts') {
+            showPage('settings-accounts');
+            document.querySelector('.nav-item[data-page="settings/accounts"]')?.classList.add('active');
+            loadAccounts();
+            loadIRedMailConfig();
+        } else {
+            // Default to agent config for #/settings and #/settings/agent
+            showPage('settings-agent');
+            document.querySelector('.nav-item[data-page="settings/agent"]')?.classList.add('active');
+            loadAiConfig();
+        }
     } else if (segments[0] === 'users') {
         showPage('users');
         document.querySelector('.nav-item[data-page="users"]')?.classList.add('active');
@@ -113,10 +119,8 @@ function handleRoute() {
         // /emails or /emails?filters...
         showPage('emails');
         document.querySelector('.nav-item[data-page="emails"]')?.classList.add('active');
-        if (query) {
-            const params = new URLSearchParams(query);
-            restoreFiltersFromParams(params);
-        }
+        const params = new URLSearchParams(query || '');
+        restoreFiltersFromParams(params);
         loadEmails();
     }
 }
@@ -143,6 +147,12 @@ function buildEmailsHash() {
     return '#/emails' + (qs ? '?' + qs : '');
 }
 
+function getDefaultDateFrom() {
+    const d = new Date();
+    d.setDate(d.getDate() - 60);
+    return d.toISOString().split('T')[0];
+}
+
 function restoreFiltersFromParams(params) {
     state.page = parseInt(params.get('page')) || 1;
     state.sortBy = params.get('sort') || 'date';
@@ -153,6 +163,11 @@ function restoreFiltersFromParams(params) {
     filterKeys.forEach(k => {
         if (params.has(k)) state.filters[k] = params.get(k);
     });
+
+    // Default: last 60 days if no date_from specified
+    if (!state.filters.date_from) {
+        state.filters.date_from = getDefaultDateFrom();
+    }
 
     // Sync filter inputs
     document.getElementById('filter-sender').value = state.filters.sender || '';
@@ -444,13 +459,13 @@ function applyFilters() {
 function clearFilters() {
     document.getElementById('filter-sender').value = '';
     document.getElementById('filter-subject').value = '';
-    document.getElementById('filter-date-from').value = '';
+    document.getElementById('filter-date-from').value = getDefaultDateFrom();
     document.getElementById('filter-date-to').value = '';
     document.getElementById('filter-label').value = '';
     document.getElementById('filter-attachments').value = '';
     document.getElementById('filter-read').value = '';
     document.getElementById('filter-size').value = '';
-    state.filters = {};
+    state.filters = { date_from: getDefaultDateFrom() };
     state.page = 1;
     navigate('#/emails');
 }
@@ -1194,6 +1209,89 @@ let allModels = [];
 let modelsSortBy = 'name';
 let modelsSortOrder = 'asc';
 
+function getModelProvider(model) {
+    if (!model) return 'unknown';
+    if (model.provider) return String(model.provider);
+    if (!model.id) return 'unknown';
+    return String(model.id).split('/')[0] || 'unknown';
+}
+
+function getModelContext(model) {
+    return parseInt(model.context_length, 10) || 0;
+}
+
+function getModelPromptPricePerM(model) {
+    return (parseFloat(model.pricing_prompt) || 0) * 1000000;
+}
+
+function getModelCompletionPricePerM(model) {
+    return (parseFloat(model.pricing_completion) || 0) * 1000000;
+}
+
+function getModelCreated(model) {
+    return parseInt(model.created, 10) || 0;
+}
+
+function compareModels(a, b) {
+    let va;
+    let vb;
+
+    if (modelsSortBy === 'provider') {
+        va = getModelProvider(a).toLowerCase();
+        vb = getModelProvider(b).toLowerCase();
+    } else if (modelsSortBy === 'context_length') {
+        va = getModelContext(a);
+        vb = getModelContext(b);
+    } else if (modelsSortBy === 'pricing_prompt') {
+        va = getModelPromptPricePerM(a);
+        vb = getModelPromptPricePerM(b);
+    } else if (modelsSortBy === 'pricing_completion') {
+        va = getModelCompletionPricePerM(a);
+        vb = getModelCompletionPricePerM(b);
+    } else if (modelsSortBy === 'supports_tools') {
+        va = a.supports_tools ? 1 : 0;
+        vb = b.supports_tools ? 1 : 0;
+    } else if (modelsSortBy === 'created') {
+        va = getModelCreated(a);
+        vb = getModelCreated(b);
+    } else {
+        va = String(a.name || a.id || '').toLowerCase();
+        vb = String(b.name || b.id || '').toLowerCase();
+    }
+
+    if (va < vb) return modelsSortOrder === 'asc' ? -1 : 1;
+    if (va > vb) return modelsSortOrder === 'asc' ? 1 : -1;
+    return 0;
+}
+
+function renderModelRow(m, currentModel) {
+    const provider = getModelProvider(m);
+    const isCurrent = m.id === currentModel;
+    const promptPrice = getModelPromptPricePerM(m);
+    const completionPrice = getModelCompletionPricePerM(m);
+    const ctx = getModelContext(m);
+    const ctxK = ctx ? Math.round(ctx / 1024) + 'K' : '-';
+    return `<tr class="${isCurrent ? 'model-current' : ''}">
+        <td><button class="btn-use-model" onclick="selectModel('${escapeHtml(m.id)}')">${isCurrent ? 'Atual' : 'Usar'}</button></td>
+        <td title="${escapeHtml(m.id)}">${escapeHtml(m.name || m.id)}</td>
+        <td>${escapeHtml(provider)}</td>
+        <td>${ctxK}</td>
+        <td>$${promptPrice.toFixed(2)}/M</td>
+        <td>$${completionPrice.toFixed(2)}/M</td>
+        <td><span class="tools-badge ${m.supports_tools ? 'yes' : 'no'}">${m.supports_tools ? 'Sim' : 'Não'}</span></td>
+        <td>${m.created ? new Date(m.created * 1000).toLocaleDateString('pt-BR') : '-'}</td>
+    </tr>`;
+}
+
+function populateProviderFilter(models) {
+    const select = document.getElementById('models-provider-filter');
+    if (!select) return;
+    const current = select.value;
+    const providers = Array.from(new Set(models.map(getModelProvider))).sort((a, b) => a.localeCompare(b));
+    select.innerHTML = '<option value="">Todos</option>' + providers.map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join('');
+    if (providers.includes(current)) select.value = current;
+}
+
 async function loadAiModels() {
     const btn = document.getElementById('btn-load-models');
     btn.disabled = true;
@@ -1203,6 +1301,7 @@ async function loadAiModels() {
         const res = await fetch(`${API}/api/config/ai/models`);
         const data = await res.json();
         allModels = data.models || [];
+        populateProviderFilter(allModels);
         document.getElementById('models-container').style.display = 'block';
         filterModels();
         showToast(`${allModels.length} modelos carregados`, 'success');
@@ -1217,6 +1316,14 @@ async function loadAiModels() {
 function filterModels() {
     const search = (document.getElementById('models-search')?.value || '').toLowerCase();
     const toolsFilter = document.getElementById('models-tools-filter')?.value;
+    const providerFilter = document.getElementById('models-provider-filter')?.value || '';
+    const groupBy = document.getElementById('models-group-by')?.value || 'none';
+    const minContext = parseInt(document.getElementById('models-min-context-filter')?.value || '0', 10) || 0;
+    const maxPromptPrice = parseFloat(document.getElementById('models-max-prompt-price')?.value || '');
+    const maxCompletionPrice = parseFloat(document.getElementById('models-max-completion-price')?.value || '');
+    const createdWithinDays = parseInt(document.getElementById('models-created-filter')?.value || '0', 10) || 0;
+    const limit = parseInt(document.getElementById('models-limit')?.value || '200', 10) || 200;
+    const nowSec = Math.floor(Date.now() / 1000);
 
     let filtered = allModels.filter(m => {
         if (search) {
@@ -1225,48 +1332,52 @@ function filterModels() {
         }
         if (toolsFilter === 'true' && !m.supports_tools) return false;
         if (toolsFilter === 'false' && m.supports_tools) return false;
+        if (providerFilter && getModelProvider(m) !== providerFilter) return false;
+        if (minContext > 0 && getModelContext(m) < minContext) return false;
+        if (Number.isFinite(maxPromptPrice) && getModelPromptPricePerM(m) > maxPromptPrice) return false;
+        if (Number.isFinite(maxCompletionPrice) && getModelCompletionPricePerM(m) > maxCompletionPrice) return false;
+        if (createdWithinDays > 0) {
+            const created = getModelCreated(m);
+            if (!created) return false;
+            const ageInDays = (nowSec - created) / 86400;
+            if (ageInDays > createdWithinDays) return false;
+        }
         return true;
     });
 
-    // Sort
-    filtered.sort((a, b) => {
-        let va = a[modelsSortBy];
-        let vb = b[modelsSortBy];
-        if (typeof va === 'string') va = va.toLowerCase();
-        if (typeof vb === 'string') vb = vb.toLowerCase();
-        if (modelsSortBy === 'pricing_prompt' || modelsSortBy === 'pricing_completion') {
-            va = parseFloat(va) || 0;
-            vb = parseFloat(vb) || 0;
-        }
-        if (va < vb) return modelsSortOrder === 'asc' ? -1 : 1;
-        if (va > vb) return modelsSortOrder === 'asc' ? 1 : -1;
-        return 0;
-    });
+    filtered.sort(compareModels);
 
     const currentModel = document.getElementById('config-model').value;
-    document.getElementById('models-info').textContent = `Mostrando ${filtered.length} de ${allModels.length} modelos`;
+    const limited = filtered.slice(0, limit);
+    document.getElementById('models-info').textContent = `Mostrando ${limited.length} de ${filtered.length} filtrados (total: ${allModels.length})`;
 
-    document.getElementById('models-tbody').innerHTML = filtered.slice(0, 200).map(m => {
-        const provider = m.id.split('/')[0] || '';
-        const isCurrent = m.id === currentModel;
-        const promptPrice = parseFloat(m.pricing_prompt) || 0;
-        const completionPrice = parseFloat(m.pricing_completion) || 0;
-        const ctxK = m.context_length ? Math.round(m.context_length / 1024) + 'K' : '-';
-        return `<tr class="${isCurrent ? 'model-current' : ''}">
-            <td><button class="btn-use-model" onclick="selectModel('${escapeHtml(m.id)}')">${isCurrent ? 'Atual' : 'Usar'}</button></td>
-            <td title="${escapeHtml(m.id)}">${escapeHtml(m.name || m.id)}</td>
-            <td>${escapeHtml(provider)}</td>
-            <td>${ctxK}</td>
-            <td>$${(promptPrice * 1000000).toFixed(2)}/M</td>
-            <td>$${(completionPrice * 1000000).toFixed(2)}/M</td>
-            <td><span class="tools-badge ${m.supports_tools ? 'yes' : 'no'}">${m.supports_tools ? 'Sim' : 'Não'}</span></td>
-            <td>${m.created ? new Date(m.created * 1000).toLocaleDateString('pt-BR') : '-'}</td>
-        </tr>`;
-    }).join('');
+    const tbody = document.getElementById('models-tbody');
+    if (groupBy === 'provider') {
+        const groups = new Map();
+        limited.forEach(m => {
+            const provider = getModelProvider(m);
+            if (!groups.has(provider)) groups.set(provider, []);
+            groups.get(provider).push(m);
+        });
+
+        const providers = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+        let html = '';
+        providers.forEach(provider => {
+            const models = groups.get(provider) || [];
+            html += `<tr class="models-group-row"><td colspan="8">${escapeHtml(provider)} <span>${models.length} modelo(s)</span></td></tr>`;
+            html += models.map(m => renderModelRow(m, currentModel)).join('');
+        });
+        tbody.innerHTML = html;
+    } else {
+        tbody.innerHTML = limited.map(m => renderModelRow(m, currentModel)).join('');
+    }
 
     // Update sort indicators
     document.querySelectorAll('.sortable-model').forEach(th => {
         th.classList.remove('sort-asc', 'sort-desc');
+        if (th.dataset.sort === modelsSortBy) {
+            th.classList.add(modelsSortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
     });
 }
 
@@ -1284,6 +1395,19 @@ function selectModel(id) {
     document.getElementById('config-model').value = id;
     filterModels(); // re-render to update highlight
     showToast(`Modelo selecionado: ${id}. Clique "Salvar Configuração" para aplicar.`, 'info');
+}
+
+function resetModelsFilters() {
+    document.getElementById('models-search').value = '';
+    document.getElementById('models-tools-filter').value = '';
+    document.getElementById('models-provider-filter').value = '';
+    document.getElementById('models-group-by').value = 'none';
+    document.getElementById('models-min-context-filter').value = '';
+    document.getElementById('models-max-prompt-price').value = '';
+    document.getElementById('models-max-completion-price').value = '';
+    document.getElementById('models-created-filter').value = '';
+    document.getElementById('models-limit').value = '200';
+    filterModels();
 }
 
 // ===== ACCOUNTS =====
@@ -1320,17 +1444,27 @@ function renderAccountsList(accounts) {
     container.innerHTML = accounts.map(a => {
         const lastSync = a.last_sync_at ? new Date(a.last_sync_at).toLocaleString('pt-BR') : 'Nunca';
         const statusClass = a.is_active ? 'active' : 'inactive';
+        const isGmail = (a.provider || '').toLowerCase() === 'gmail';
+        const hasError = a.sync_status === 'error';
+        const reconnectBtn = isGmail
+            ? `<a class="btn btn-sm ${hasError ? 'btn-primary' : 'btn-outline'}" href="/auth/gmail/connect">Reconectar</a>`
+            : '';
+        const errorHtml = hasError && a.sync_error
+            ? `<div class="account-error-msg">${escapeHtml(a.sync_error)}</div>`
+            : '';
         return `<div class="account-item">
             <div class="account-info">
                 <span class="account-status-dot ${statusClass}"></span>
                 <div class="account-details">
                     <div class="account-name">${escapeHtml(a.name)}</div>
                     <div class="account-email">${escapeHtml(a.email)}</div>
-                    <div class="account-meta">Último sync: ${lastSync}</div>
+                    <div class="account-meta">Último sync: ${lastSync}${hasError ? ' <span style="color:var(--danger)">Erro</span>' : ''}</div>
                 </div>
                 <span class="account-provider-badge ${a.provider}">${a.provider.toUpperCase()}</span>
             </div>
+            ${errorHtml}
             <div class="account-actions">
+                ${reconnectBtn}
                 <button class="btn btn-sm btn-outline" onclick="syncAccountById(${a.id})">Sincronizar</button>
                 <button class="btn btn-sm btn-outline" onclick="editAccount(${a.id})">Editar</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteAccount(${a.id}, '${escapeHtml(a.name)}')">Remover</button>
@@ -2021,6 +2155,7 @@ async function importSelectedIRedMail() {
 
 // ===== SYNC STATUS PAGE =====
 let syncPagePollInterval = null;
+const syncConnectionState = {};
 
 function timeAgo(dateStr) {
     if (!dateStr) return 'Nunca';
@@ -2046,7 +2181,7 @@ async function loadSyncStatus() {
     }
 
     try {
-        const res = await fetch(`${API}/api/accounts/sync/all-status`);
+        const res = await fetch(`${API}/api/accounts/sync/all-status?include_connection=true`);
         const accounts = await res.json();
         renderSyncTable(accounts);
         startSyncPagePolling(accounts.some(a => a.sync_status === 'syncing'));
@@ -2092,8 +2227,28 @@ function renderSyncTable(accounts) {
     }
 
     container.innerHTML = accounts.map(a => {
+        if (typeof a.connection_ok === 'boolean') {
+            syncConnectionState[a.id] = {
+                ok: a.connection_ok,
+                message: a.connection_message || '',
+            };
+        }
+        const savedConnection = syncConnectionState[a.id];
+        const connectionOk = savedConnection ? savedConnection.ok : null;
+        const connectionMessage = savedConnection ? savedConnection.message : '';
+
         const statusClass = a.sync_status || 'idle';
         const statusLabel = {syncing: 'Sincronizando', idle: 'Parado', error: 'Erro'}[statusClass] || statusClass;
+        const providerLabel = (a.provider || '').toLowerCase() === 'gmail' ? 'OAuth Gmail' : 'IMAP';
+        const connectionClass = connectionOk === true ? 'ok' : connectionOk === false ? 'error' : 'unknown';
+        const connectionLabel = connectionOk === true
+            ? `${providerLabel} conectado`
+            : connectionOk === false
+                ? `${providerLabel} com falha`
+                : `${providerLabel} não verificado`;
+        const connectionHint = connectionMessage
+            ? escapeHtml(connectionMessage)
+            : 'Status de conexão será validado ao abrir a página.';
 
         let progressHtml = '';
         if (a.sync_status === 'syncing' && a.progress) {
@@ -2121,6 +2276,15 @@ function renderSyncTable(accounts) {
         const syncBtnClass = a.sync_status === 'syncing' ? 'btn-sync-spinning' : '';
         const syncBtnDisabled = a.sync_status === 'syncing' ? 'disabled' : '';
 
+        const isGmail = (a.provider || '').toLowerCase() === 'gmail';
+        const needsReconnect = isGmail && (a.sync_status === 'error' || connectionOk === false);
+        const reconnectBtn = isGmail ? `<a class="btn btn-sm ${needsReconnect ? 'btn-primary' : 'btn-outline'}" href="/auth/gmail/connect" title="Re-autorizar acesso Gmail via OAuth">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+                    </svg>
+                    Reconectar
+                </a>` : '';
+
         return `<div class="sync-account-card">
             <div class="sync-account-main">
                 <div class="sync-account-info">
@@ -2128,6 +2292,10 @@ function renderSyncTable(accounts) {
                     <div>
                         <div class="sync-account-name">${escapeHtml(a.name)}</div>
                         <div class="sync-account-email">${escapeHtml(a.email)}</div>
+                        <div class="sync-connection-row">
+                            <span class="sync-connection-badge ${connectionClass}">${connectionLabel}</span>
+                            <span class="sync-connection-hint">${connectionHint}</span>
+                        </div>
                     </div>
                 </div>
                 <span class="account-provider-badge ${a.provider}">${a.provider.toUpperCase()}</span>
@@ -2144,14 +2312,17 @@ function renderSyncTable(accounts) {
                 <div class="sync-account-status">
                     <span class="sync-status-badge ${statusClass}">${statusLabel}</span>
                 </div>
-                <button class="btn btn-sm btn-outline ${syncBtnClass}" onclick="syncSingleAccount(${a.id})" ${syncBtnDisabled}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-                        <polyline points="23 4 23 10 17 10"/>
-                        <polyline points="1 20 1 14 7 14"/>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                    </svg>
-                    Sincronizar
-                </button>
+                <div class="sync-account-buttons">
+                    ${reconnectBtn}
+                    <button class="btn btn-sm btn-outline ${syncBtnClass}" onclick="syncSingleAccount(${a.id})" ${syncBtnDisabled}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <polyline points="1 20 1 14 7 14"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                        Sincronizar
+                    </button>
+                </div>
             </div>
             ${progressHtml}
             ${errorHtml}

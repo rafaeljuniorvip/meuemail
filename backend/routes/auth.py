@@ -142,18 +142,27 @@ async def gmail_callback(
         "access_token": data["access_token"],
     })
 
-    # Check if account already exists for this user+email
+    # Check if account already exists for this user+email (or legacy account without user_id)
     existing = (
         db.query(Account)
         .filter(Account.user_id == user_id, Account.email == gmail_email, Account.provider == "gmail")
         .first()
     )
+    if not existing:
+        # Check for legacy account without user_id
+        existing = (
+            db.query(Account)
+            .filter(Account.user_id.is_(None), Account.email == gmail_email, Account.provider == "gmail")
+            .first()
+        )
 
     if existing:
         existing.oauth_token = oauth_token
         existing.name = data["name"] or existing.name
         existing.sync_status = "idle"
         existing.sync_error = None
+        if not existing.user_id:
+            existing.user_id = user_id
         db.commit()
         print(f"[Gmail Connect] Updated account for {gmail_email} (user_id={user_id})")
     else:

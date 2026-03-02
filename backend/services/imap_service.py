@@ -135,6 +135,11 @@ class ImapService:
             except Exception:
                 pass
 
+        # Fallback: use current time if date header is missing/invalid
+        if date is None:
+            from datetime import datetime, timezone
+            date = datetime.now(timezone.utc)
+
         message_id = msg.get("Message-ID", "")
         # Use UID as stable ID
         uid_str = uid.decode() if isinstance(uid, bytes) else str(uid)
