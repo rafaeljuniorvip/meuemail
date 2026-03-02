@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNav();
     setupChatInput();
     restoreSidebarState();
+    restoreSidebarCompact();
     showSidebarLoading();
     window.addEventListener('hashchange', handleRoute);
 });
@@ -110,6 +111,7 @@ function handleRoute() {
             showPage('settings-agent');
             document.querySelector('.nav-item[data-page="settings/agent"]')?.classList.add('active');
             loadAiConfig();
+            loadApiKeys();
         }
     } else if (segments[0] === 'users') {
         showPage('users');
@@ -681,6 +683,23 @@ function restoreSidebarState() {
     });
 }
 
+function toggleSidebarCompact() {
+    if (window.innerWidth <= 1024) return;
+    const compact = document.body.classList.toggle('sidebar-compact');
+    localStorage.setItem('sidebarCompact', compact ? '1' : '0');
+    const btn = document.getElementById('sidebar-toggle-btn');
+    if (btn) btn.setAttribute('aria-pressed', compact ? 'true' : 'false');
+}
+
+function restoreSidebarCompact() {
+    const compact = localStorage.getItem('sidebarCompact') === '1';
+    if (compact && window.innerWidth > 1024) {
+        document.body.classList.add('sidebar-compact');
+    }
+    const btn = document.getElementById('sidebar-toggle-btn');
+    if (btn) btn.setAttribute('aria-pressed', document.body.classList.contains('sidebar-compact') ? 'true' : 'false');
+}
+
 // ===== ANALYSIS =====
 async function loadAnalysis() {
     try {
@@ -1202,6 +1221,111 @@ function resetSystemPrompt() {
 function toggleApiKeyVisibility() {
     const input = document.getElementById('config-api-key');
     input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+// ===== API KEYS MANAGEMENT =====
+
+async function loadApiKeys() {
+    try {
+        const res = await fetch(`${API}/api/api-keys`);
+        const keys = await res.json();
+        const tbody = document.getElementById('api-keys-tbody');
+        if (!keys.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px;">Nenhuma chave criada</td></tr>';
+            return;
+        }
+        tbody.innerHTML = keys.map(k => {
+            const created = k.created_at ? new Date(k.created_at).toLocaleDateString('pt-BR') : '-';
+            const lastUsed = k.last_used_at ? new Date(k.last_used_at).toLocaleDateString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : 'Nunca';
+            const status = k.is_active
+                ? '<span style="color:var(--success,#22c55e);font-weight:600;">Ativa</span>'
+                : '<span style="color:var(--text-muted);font-weight:600;">Revogada</span>';
+            const actions = k.is_active
+                ? `<button class="btn btn-sm btn-outline" onclick="revokeApiKey(${k.id})" title="Revogar">Revogar</button> <button class="btn btn-sm btn-danger-outline" onclick="deleteApiKey(${k.id},'${k.name.replace(/'/g,"\\'")}')" title="Excluir">Excluir</button>`
+                : `<button class="btn btn-sm btn-danger-outline" onclick="deleteApiKey(${k.id},'${k.name.replace(/'/g,"\\'")}')" title="Excluir">Excluir</button>`;
+            return `<tr>
+                <td>${k.name}</td>
+                <td><code style="font-size:12px;">${k.key_prefix}...</code></td>
+                <td>${created}</td>
+                <td>${lastUsed}</td>
+                <td>${k.request_count}</td>
+                <td>${status}</td>
+                <td>${actions}</td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        console.error('Failed to load API keys:', e);
+    }
+}
+
+function showCreateApiKeyModal() {
+    document.getElementById('api-key-create-form').style.display = '';
+    document.getElementById('api-key-created-result').style.display = 'none';
+    document.getElementById('api-key-name').value = '';
+    document.getElementById('modal-create-api-key').style.display = 'flex';
+    document.getElementById('api-key-name').focus();
+}
+
+async function createApiKey() {
+    const name = document.getElementById('api-key-name').value.trim();
+    if (!name) {
+        showToast('Informe um nome para a chave', 'error');
+        return;
+    }
+    try {
+        const res = await fetch(`${API}/api/api-keys`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (!res.ok) throw new Error('Erro ao criar chave');
+        const data = await res.json();
+        document.getElementById('api-key-raw-value').value = data.key;
+        document.getElementById('api-key-create-form').style.display = 'none';
+        document.getElementById('api-key-created-result').style.display = '';
+        loadApiKeys();
+    } catch (e) {
+        showToast('Erro ao criar chave de API', 'error');
+    }
+}
+
+function copyApiKey() {
+    const input = document.getElementById('api-key-raw-value');
+    navigator.clipboard.writeText(input.value).then(() => {
+        showToast('Chave copiada!', 'success');
+    }).catch(() => {
+        input.select();
+        document.execCommand('copy');
+        showToast('Chave copiada!', 'success');
+    });
+}
+
+function closeApiKeyModal() {
+    document.getElementById('modal-create-api-key').style.display = 'none';
+}
+
+async function revokeApiKey(id) {
+    if (!confirm('Revogar esta chave? Sistemas que a utilizam perderão acesso.')) return;
+    try {
+        const res = await fetch(`${API}/api/api-keys/${id}/revoke`, { method: 'POST' });
+        if (!res.ok) throw new Error();
+        showToast('Chave revogada', 'success');
+        loadApiKeys();
+    } catch (e) {
+        showToast('Erro ao revogar chave', 'error');
+    }
+}
+
+async function deleteApiKey(id, name) {
+    if (!confirm(`Excluir permanentemente a chave "${name}"?`)) return;
+    try {
+        const res = await fetch(`${API}/api/api-keys/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        showToast('Chave excluída', 'success');
+        loadApiKeys();
+    } catch (e) {
+        showToast('Erro ao excluir chave', 'error');
+    }
 }
 
 // ===== MODELS BROWSER =====

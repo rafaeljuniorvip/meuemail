@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeuEmail - Plataforma de Gestão de Emails</title>
+    <meta name="description" content="Centralize, organize e analise emails em uma plataforma segura com integração Google e IMAP.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: oklch(97% 0.01 250);
+            --surface: oklch(99% 0.004 250);
+            --surface-soft: oklch(98.6% 0.006 250);
+            --border: oklch(89% 0.015 250);
+            --text: oklch(28% 0.02 262);
+            --text-secondary: oklch(45% 0.015 255);
+            --text-muted: oklch(60% 0.014 255);
+            --primary: oklch(53% 0.18 257);
+            --primary-hover: oklch(48% 0.17 257);
+            --ok: oklch(64% 0.16 150);
+            --radius-sm: 12px;
+            --radius-md: 18px;
+            --radius-lg: 24px;
+            --shadow-soft: 0 12px 34px rgba(15, 23, 42, 0.09);
+            --shadow-elev: 0 18px 48px rgba(15, 23, 42, 0.13);
+            --font: 'Manrope', 'Segoe UI', sans-serif;
+            --font-display: 'Syne', 'Manrope', sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font);
+            color: var(--text);
+            background:
+                radial-gradient(1200px 500px at -8% -20%, oklch(90% 0.07 250 / 0.55), transparent 60%),
+                radial-gradient(900px 420px at 110% 0%, oklch(92% 0.06 165 / 0.45), transparent 60%),
+                linear-gradient(180deg, oklch(96% 0.01 250) 0%, var(--bg) 100%);
+            min-height: 100%;
+        }
+
+        a { color: inherit; text-decoration: none; }
+
+        .container {
+            width: min(1120px, calc(100% - 32px));
+            margin: 0 auto;
+        }
+
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            backdrop-filter: blur(10px);
+            background: oklch(99% 0.004 250 / 0.72);
+            border-bottom: 1px solid oklch(90% 0.012 250 / 0.85);
+        }
+
+        .header-row {
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 800;
+            font-family: var(--font-display);
+            letter-spacing: -0.02em;
+            font-size: 22px;
+        }
+
+        .brand-mark {
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            background: linear-gradient(140deg, var(--primary), oklch(60% 0.17 208));
+            box-shadow: 0 8px 18px rgba(59, 130, 246, 0.32);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-radius: 12px;
+            padding: 10px 16px;
+            border: 1px solid transparent;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .btn-outline {
+            background: oklch(100% 0 0 / 0.62);
+            border-color: var(--border);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
+            border-color: oklch(83% 0.04 250);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.25);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 16px 28px rgba(37, 99, 235, 0.3);
+        }
+
+        .hero {
+            padding: 70px 0 54px;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: 28px;
+            align-items: stretch;
+        }
+
+        .hero-copy {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            padding: 34px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.11em;
+            color: var(--text-secondary);
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .eyebrow::before {
+            content: "";
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--ok);
+            box-shadow: 0 0 0 4px oklch(64% 0.16 150 / 0.2);
+        }
+
+        h1 {
+            margin: 0;
+            font-family: var(--font-display);
+            font-size: clamp(34px, 5vw, 56px);
+            letter-spacing: -0.03em;
+            line-height: 1.03;
+        }
+
+        .hero-copy p {
+            margin: 18px 0 0;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            font-size: 16px;
+            max-width: 60ch;
+        }
+
+        .hero-cta {
+            margin-top: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .hero-notes {
+            margin-top: 18px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .hero-note {
+            background: var(--surface-soft);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 6px 12px;
+        }
+
+        .hero-panel {
+            background: linear-gradient(170deg, oklch(99.5% 0.004 250), oklch(96.5% 0.02 247));
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-elev);
+            padding: 20px;
+            display: grid;
+            gap: 12px;
+            align-content: start;
+        }
+
+        .panel-card {
+            background: #fff;
+            border: 1px solid oklch(89% 0.01 250);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 800;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .panel-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            padding: 8px 0;
+            border-bottom: 1px solid oklch(92% 0.008 250);
+        }
+
+        .panel-line:last-child { border-bottom: none; }
+
+        .pill {
+            border-radius: 999px;
+            padding: 3px 10px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .pill-ok {
+            background: oklch(93% 0.04 150);
+            color: oklch(40% 0.12 150);
+        }
+
+        .pill-info {
+            background: oklch(93% 0.04 250);
+            color: oklch(45% 0.15 250);
+        }
+
+        .section {
+            padding: 14px 0 34px;
+        }
+
+        .section h2 {
+            font-size: clamp(24px, 3vw, 36px);
+            margin: 0 0 8px;
+            font-family: var(--font-display);
+            letter-spacing: -0.02em;
+        }
+
+        .section-lead {
+            margin: 0 0 20px;
+            color: var(--text-secondary);
+            font-size: 16px;
+            max-width: 70ch;
+        }
+
+        .feature-grid {
+            display: grid;
+            gap: 12px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .feature {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 18px;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .feature h3 {
+            margin: 0 0 8px;
+            font-size: 18px;
+        }
+
+        .feature p {
+            margin: 0;
+            color: var(--text-secondary);
+            line-height: 1.65;
+            font-size: 14px;
+        }
+
+        .flow {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .flow-step {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+        }
+
+        .step-no {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 800;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: oklch(92% 0.05 250);
+            color: oklch(43% 0.15 250);
+            margin-bottom: 10px;
+        }
+
+        .flow-step h3 {
+            margin: 0 0 5px;
+            font-size: 16px;
+        }
+
+        .flow-step p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .cta {
+            margin: 22px 0 50px;
+            background: linear-gradient(135deg, oklch(96% 0.03 245), oklch(92% 0.08 246));
+            border: 1px solid oklch(84% 0.04 246);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            box-shadow: var(--shadow-elev);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .cta h3 {
+            margin: 0 0 6px;
+            font-size: 26px;
+            font-family: var(--font-display);
+            letter-spacing: -0.02em;
+        }
+
+        .cta p {
+            margin: 0;
+            color: var(--text-secondary);
+            max-width: 58ch;
+        }
+
+        .site-footer {
+            border-top: 1px solid var(--border);
+            padding: 24px 0 36px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .footer-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a:hover {
+            color: var(--text);
+            text-decoration: underline;
+        }
+
+        @media (max-width: 1024px) {
+            .hero-grid { grid-template-columns: 1fr; }
+            .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 640px) {
+            .header-row { height: 68px; }
+            .brand { font-size: 19px; }
+            .hero { padding-top: 34px; }
+            .hero-copy, .hero-panel { padding: 20px; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .flow { grid-template-columns: 1fr; }
+            .btn { width: 100%; }
+            .header-actions .btn-outline { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-row">
+            <a class="brand" href="/">
+                <span class="brand-mark"></span>
+                <span>MeuEmail</span>
+            </a>
+            <div class="header-actions">
+                <a class="btn btn-outline" href="/privacy">Privacidade</a>
+                <a class="btn btn-outline" href="/terms">Termos</a>
+                <a class="btn btn-primary" href="/login">Entrar</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container hero-grid">
+                <div class="hero-copy">
+                    <div class="eyebrow">Plataforma Operacional de Email</div>
+                    <h1>Controle seus emails em uma interface clara, rápida e segura.</h1>
+                    <p>
+                        O MeuEmail centraliza contas Google e IMAP, organiza mensagens com filtros avançados,
+                        traz análise inteligente de remetentes e oferece um fluxo operacional pronto para equipes.
+                    </p>
+                    <div class="hero-cta">
+                        <a class="btn btn-primary" href="/login">Acessar Plataforma</a>
+                        <a class="btn btn-outline" href="/app">Abrir Sistema</a>
+                    </div>
+                    <div class="hero-notes">
+                        <span class="hero-note">OAuth Google</span>
+                        <span class="hero-note">Conexão IMAP</span>
+                        <span class="hero-note">Busca, filtros e análises</span>
+                    </div>
+                </div>
+
+                <aside class="hero-panel" aria-label="Resumo da plataforma">
+                    <div class="panel-card">
+                        <div class="panel-title">Visibilidade Operacional</div>
+                        <div class="panel-line"><span>Caixa unificada</span><span class="pill pill-ok">Ativo</span></div>
+                        <div class="panel-line"><span>Análise de remetentes</span><span class="pill pill-info">Insights</span></div>
+                        <div class="panel-line"><span>Sincronização em lote</span><span class="pill pill-ok">Online</span></div>
+                    </div>
+                    <div class="panel-card">
+                        <div class="panel-title">Segurança e Controle</div>
+                        <div class="panel-line"><span>Autenticação OAuth</span><span class="pill pill-ok">Google</span></div>
+                        <div class="panel-line"><span>Perfis de usuário</span><span class="pill pill-info">Admin/User</span></div>
+                        <div class="panel-line"><span>Política de privacidade pública</span><span class="pill pill-ok">Conforme</span></div>
+                    </div>
+                </aside>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <h2>Principais recursos</h2>
+                <p class="section-lead">Estrutura pensada para operações que lidam com volume de mensagens e precisam de organização consistente.</p>
+                <div class="feature-grid">
+                    <article class="feature">
+                        <h3>Inbox unificada</h3>
+                        <p>Visualize emails de diferentes contas em um painel único com paginação e filtros avançados por remetente, assunto, data e anexos.</p>
+                    </article>
+                    <article class="feature">
+                        <h3>Análise inteligente</h3>
+                        <p>Identifique padrões por domínio, remetentes automáticos e similaridade para apoiar decisões e limpeza de caixa de entrada.</p>
+                    </article>
+                    <article class="feature">
+                        <h3>Configuração operacional</h3>
+                        <p>Gerencie contas, sincronizações e parâmetros de IA em um fluxo contínuo para rotina de atendimento e monitoramento.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <h2>Como funciona</h2>
+                <p class="section-lead">Implementação simples em quatro passos para começar a operar.</p>
+                <div class="flow">
+                    <article class="flow-step">
+                        <span class="step-no">1</span>
+                        <h3>Autentique</h3>
+                        <p>Acesse com sua conta autorizada e faça consentimento OAuth quando necessário.</p>
+                    </article>
+                    <article class="flow-step">
+                        <span class="step-no">2</span>
+                        <h3>Conecte contas</h3>
+                        <p>Adicione Gmail e/ou IMAP para consolidar mensagens em um único ambiente.</p>
+                    </article>
+                    <article class="flow-step">
+                        <span class="step-no">3</span>
+                        <h3>Sincronize</h3>
+                        <p>Execute sincronização e acompanhe status em tempo real com indicadores por conta.</p>
+                    </article>
+                    <article class="flow-step">
+                        <span class="step-no">4</span>
+                        <h3>Analise e aja</h3>
+                        <p>Use filtros, estatísticas e buscas para tomar ações rápidas com contexto.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="container cta">
+            <div>
+                <h3>Pronto para validar seu fluxo OAuth e publicar?</h3>
+                <p>Com home, política e termos públicos, você atende os requisitos básicos de branding para revisão do app no Google Cloud.</p>
+            </div>
+            <a class="btn btn-primary" href="/login">Entrar no MeuEmail</a>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-row">
+            <span>© 2026 MeuEmail. Todos os direitos reservados.</span>
+            <nav class="footer-links" aria-label="Links legais">
+                <a href="/privacy">Política de Privacidade</a>
+                <a href="/terms">Termos de Serviço</a>
+                <a href="/login">Login</a>
+            </nav>
+        </div>
+    </footer>
+</body>
+</html>

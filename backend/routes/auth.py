@@ -23,14 +23,14 @@ templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates"
 
 @router.get("/login")
 def login_page(request: Request):
-    # If already authenticated, redirect to home
+    # If already authenticated, redirect to app
     token = request.cookies.get("session")
     if token:
         from services.auth_service import decode_jwt
 
         payload = decode_jwt(token)
         if payload:
-            return RedirectResponse(url="/")
+            return RedirectResponse(url="/app")
     return templates.TemplateResponse("login.html", {"request": request})
 
 
@@ -89,7 +89,7 @@ async def auth_callback(request: Request, code: str = "", db: Session = Depends(
 
     # Create JWT and set cookie
     token = create_jwt(user.id, user.email, user.role)
-    response = RedirectResponse(url="/", status_code=302)
+    response = RedirectResponse(url="/app", status_code=302)
     response.set_cookie(
         key="session",
         value=token,
@@ -120,18 +120,18 @@ async def gmail_callback(
 ):
     """Handle Google OAuth callback for Gmail connect. Creates/updates account."""
     if not code or not state:
-        return RedirectResponse(url="/#/settings?error=gmail_no_code")
+        return RedirectResponse(url="/app#/settings?error=gmail_no_code")
 
     try:
         user_id = int(state)
     except (ValueError, TypeError):
-        return RedirectResponse(url="/#/settings?error=gmail_invalid_state")
+        return RedirectResponse(url="/app#/settings?error=gmail_invalid_state")
 
     try:
         data = await exchange_gmail_code(code)
     except Exception as e:
         print(f"[Gmail Connect] Exchange error: {e}")
-        return RedirectResponse(url="/#/settings?error=gmail_exchange_failed")
+        return RedirectResponse(url="/app#/settings?error=gmail_exchange_failed")
 
     import json
     from models.account import Account
@@ -179,7 +179,7 @@ async def gmail_callback(
         db.commit()
         print(f"[Gmail Connect] Created account for {gmail_email} (user_id={user_id})")
 
-    return RedirectResponse(url="/#/sync")
+    return RedirectResponse(url="/app#/sync")
 
 
 @router.get("/auth/me")
