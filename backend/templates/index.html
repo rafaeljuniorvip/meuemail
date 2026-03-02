@@ -750,6 +750,7 @@
                                 <th>Nome</th>
                                 <th>Role</th>
                                 <th>Ativo</th>
+                                <th>API Keys</th>
                                 <th>Ultimo Login</th>
                                 <th>Acoes</th>
                             </tr>
@@ -908,6 +909,45 @@
             <div class="modal-actions" style="margin-top:20px">
                 <button class="btn btn-outline" onclick="closeUserModal()">Cancelar</button>
                 <button class="btn btn-primary" onclick="addUser()">Adicionar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User API Keys Modal -->
+    <div id="modal-user-api-keys" class="modal-overlay" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
+        <div class="modal" style="max-width:620px;padding:24px;">
+            <div class="modal-header">
+                <h3>API Keys — <span id="user-apikeys-email"></span></h3>
+                <button class="modal-close" onclick="document.getElementById('modal-user-api-keys').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="table-container" style="margin-bottom:12px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Prefixo</th>
+                                <th>Requisições</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-apikeys-tbody">
+                            <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:16px;">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="text" id="user-apikey-new-name" class="config-input" placeholder="Nome da nova chave" maxlength="100" style="flex:1;">
+                    <button class="btn btn-primary btn-sm" onclick="adminCreateApiKey()">Gerar</button>
+                </div>
+                <div id="user-apikey-created" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;">
+                    <label style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px;">Chave gerada (copie agora)</label>
+                    <div class="config-input-wrapper">
+                        <input type="text" id="user-apikey-raw" class="config-input" readonly style="font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;">
+                        <button class="btn btn-sm btn-outline" onclick="navigator.clipboard.writeText(document.getElementById('user-apikey-raw').value);showToast('Copiada!','success');">Copiar</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

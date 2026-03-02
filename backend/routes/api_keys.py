@@ -13,9 +13,18 @@ def get_current_user(request: Request) -> dict:
     return user
 
 
+def require_admin(request: Request) -> dict:
+    user = get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado: apenas administradores")
+    return user
+
+
 class CreateKeyRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
 
+
+# === Routes for own keys (any authenticated user) ===
 
 @router.get("")
 def list_keys(request: Request):
@@ -41,5 +50,35 @@ def revoke_key(key_id: int, request: Request):
 def delete_key(key_id: int, request: Request):
     user = get_current_user(request)
     if not api_key_service.delete_key(key_id, user["id"]):
+        raise HTTPException(status_code=404, detail="Chave não encontrada")
+    return {"status": "ok"}
+
+
+# === Admin routes (manage keys for any user) ===
+
+@router.get("/user/{user_id}")
+def admin_list_keys(user_id: int, request: Request):
+    require_admin(request)
+    return api_key_service.list_keys(user_id)
+
+
+@router.post("/user/{user_id}")
+def admin_create_key(user_id: int, body: CreateKeyRequest, request: Request):
+    require_admin(request)
+    return api_key_service.generate_key(user_id, body.name)
+
+
+@router.post("/user/{user_id}/{key_id}/revoke")
+def admin_revoke_key(user_id: int, key_id: int, request: Request):
+    require_admin(request)
+    if not api_key_service.revoke_key(key_id, user_id):
+        raise HTTPException(status_code=404, detail="Chave não encontrada")
+    return {"status": "ok"}
+
+
+@router.delete("/user/{user_id}/{key_id}")
+def admin_delete_key(user_id: int, key_id: int, request: Request):
+    require_admin(request)
+    if not api_key_service.delete_key(key_id, user_id):
         raise HTTPException(status_code=404, detail="Chave não encontrada")
     return {"status": "ok"}

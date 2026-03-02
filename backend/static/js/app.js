@@ -1976,6 +1976,7 @@ function renderUsersTable(users) {
             <td>${escapeHtml(u.name || '-')}</td>
             <td><span class="user-role-badge ${u.role}">${u.role}</span></td>
             <td><span class="user-status-badge ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Ativo' : 'Inativo'}</span></td>
+            <td><button class="btn btn-sm btn-outline" onclick="openUserApiKeysModal(${u.id}, '${escapeHtml(u.email)}')">Gerenciar</button></td>
             <td>${lastLogin}</td>
             <td>
                 <button class="btn btn-sm btn-outline" onclick="toggleUserActive(${u.id}, ${!u.is_active})">${u.is_active ? 'Desativar' : 'Ativar'}</button>
@@ -2066,6 +2067,87 @@ async function removeUser(userId, email) {
     } catch (e) {
         showToast('Erro: ' + e.message, 'error');
     }
+}
+
+// ===== ADMIN API KEYS (per user) =====
+let adminApiKeysUserId = null;
+
+async function openUserApiKeysModal(userId, email) {
+    adminApiKeysUserId = userId;
+    document.getElementById('user-apikeys-email').textContent = email;
+    document.getElementById('user-apikey-new-name').value = '';
+    document.getElementById('user-apikey-created').style.display = 'none';
+    document.getElementById('modal-user-api-keys').style.display = 'flex';
+    await loadUserApiKeys(userId);
+}
+
+async function loadUserApiKeys(userId) {
+    const tbody = document.getElementById('user-apikeys-tbody');
+    try {
+        const res = await fetch(`${API}/api/api-keys/user/${userId}`);
+        const keys = await res.json();
+        if (!keys.length) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:16px;">Nenhuma chave</td></tr>';
+            return;
+        }
+        tbody.innerHTML = keys.map(k => {
+            const status = k.is_active
+                ? '<span style="color:var(--success,#22c55e);font-weight:600;">Ativa</span>'
+                : '<span style="color:var(--text-muted);">Revogada</span>';
+            const actions = k.is_active
+                ? `<button class="btn btn-sm btn-outline" onclick="adminRevokeApiKey(${userId},${k.id})">Revogar</button> <button class="btn btn-sm btn-danger-outline" onclick="adminDeleteApiKey(${userId},${k.id},'${k.name.replace(/'/g,"\\'")}')">Excluir</button>`
+                : `<button class="btn btn-sm btn-danger-outline" onclick="adminDeleteApiKey(${userId},${k.id},'${k.name.replace(/'/g,"\\'")}')">Excluir</button>`;
+            return `<tr>
+                <td>${k.name}</td>
+                <td><code style="font-size:12px;">${k.key_prefix}...</code></td>
+                <td>${k.request_count}</td>
+                <td>${status}</td>
+                <td>${actions}</td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--danger);">Erro ao carregar</td></tr>';
+    }
+}
+
+async function adminCreateApiKey() {
+    const name = document.getElementById('user-apikey-new-name').value.trim();
+    if (!name) { showToast('Informe um nome', 'error'); return; }
+    try {
+        const res = await fetch(`${API}/api/api-keys/user/${adminApiKeysUserId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        document.getElementById('user-apikey-raw').value = data.key;
+        document.getElementById('user-apikey-created').style.display = '';
+        document.getElementById('user-apikey-new-name').value = '';
+        loadUserApiKeys(adminApiKeysUserId);
+    } catch (e) {
+        showToast('Erro ao criar chave', 'error');
+    }
+}
+
+async function adminRevokeApiKey(userId, keyId) {
+    if (!confirm('Revogar esta chave?')) return;
+    try {
+        const res = await fetch(`${API}/api/api-keys/user/${userId}/${keyId}/revoke`, { method: 'POST' });
+        if (!res.ok) throw new Error();
+        showToast('Chave revogada', 'success');
+        loadUserApiKeys(userId);
+    } catch (e) { showToast('Erro ao revogar', 'error'); }
+}
+
+async function adminDeleteApiKey(userId, keyId, name) {
+    if (!confirm(`Excluir permanentemente "${name}"?`)) return;
+    try {
+        const res = await fetch(`${API}/api/api-keys/user/${userId}/${keyId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        showToast('Chave excluída', 'success');
+        loadUserApiKeys(userId);
+    } catch (e) { showToast('Erro ao excluir', 'error'); }
 }
 
 // ===== IREDMAIL INTEGRATION =====
