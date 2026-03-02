@@ -296,7 +296,7 @@ class AccountService:
             if not refresh_token:
                 raise Exception("No refresh_token found in oauth_token")
 
-            from config.auth import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+            from config.auth import GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET
             from google.oauth2.credentials import Credentials
             from google.auth.transport.requests import Request as GoogleAuthRequest
             from googleapiclient.discovery import build
@@ -305,8 +305,8 @@ class AccountService:
                 token=token_data.get("access_token"),
                 refresh_token=refresh_token,
                 token_uri="https://oauth2.googleapis.com/token",
-                client_id=GOOGLE_CLIENT_ID,
-                client_secret=GOOGLE_CLIENT_SECRET,
+                client_id=GMAIL_CLIENT_ID,
+                client_secret=GMAIL_CLIENT_SECRET,
                 scopes=["https://www.googleapis.com/auth/gmail.readonly"],
             )
 

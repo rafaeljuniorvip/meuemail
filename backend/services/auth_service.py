@@ -6,6 +6,8 @@ import jwt
 from config.auth import (
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
+    GMAIL_CLIENT_ID,
+    GMAIL_CLIENT_SECRET,
     SESSION_SECRET,
     JWT_ALGORITHM,
     JWT_EXPIRATION_HOURS,
@@ -98,7 +100,7 @@ def get_gmail_connect_url(state: str = "") -> str:
     from urllib.parse import urlencode
 
     params = {
-        "client_id": GOOGLE_CLIENT_ID,
+        "client_id": GMAIL_CLIENT_ID,
         "redirect_uri": f"{APP_URL}/auth/gmail/callback",
         "response_type": "code",
         "scope": GMAIL_CONNECT_SCOPES,
@@ -117,8 +119,8 @@ async def exchange_gmail_code(code: str) -> dict:
             GOOGLE_TOKEN_URL,
             data={
                 "code": code,
-                "client_id": GOOGLE_CLIENT_ID,
-                "client_secret": GOOGLE_CLIENT_SECRET,
+                "client_id": GMAIL_CLIENT_ID,
+                "client_secret": GMAIL_CLIENT_SECRET,
                 "redirect_uri": f"{APP_URL}/auth/gmail/callback",
                 "grant_type": "authorization_code",
             },

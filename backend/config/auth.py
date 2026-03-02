@@ -1,7 +1,13 @@
 import os
 
+# OAuth for login (openid, email, profile only)
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+# OAuth for Gmail API access (gmail.readonly) - separate client
+GMAIL_CLIENT_ID = os.getenv("GMAIL_CLIENT_ID", "")
+GMAIL_CLIENT_SECRET = os.getenv("GMAIL_CLIENT_SECRET", "")
+
 SESSION_SECRET = os.getenv("SESSION_SECRET", "meugmail-secret-change-in-production")
 SUPER_ADMIN_EMAIL = os.getenv("SUPER_ADMIN_EMAIL", "rafaeljrssg@gmail.com")
 APP_URL = os.getenv("APP_URL", "http://localhost:8467")
