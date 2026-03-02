@@ -37,10 +37,11 @@ class DeleteByFilterRequest(BaseModel):
 
 
 @router.get("/auth/status")
-def auth_status():
+def auth_status(request: Request):
+    user = getattr(request.state, "user", None)
     return {
-        "authenticated": gmail_service.is_authenticated(),
-        "email": gmail_service.user_email,
+        "authenticated": user is not None,
+        "email": user.get("email") if user else None,
     }
 
 
@@ -116,74 +117,69 @@ def list_emails(
     }
 
 
+_stats_cache: dict = {}
+_STATS_CACHE_TTL = 60  # seconds
+
+
 @router.get("/emails/stats")
 def email_stats(request: Request, account_id: Optional[int] = None, db: Session = Depends(get_db)):
+    import time
     user = get_current_user(request)
-    base_query = db.query(Email)
-    if user.get("id"):
-        base_query = base_query.filter(Email.user_id == user["id"])
+    user_id = user.get("id")
+
+    cache_key = f"{user_id}:{account_id}"
+    cached = _stats_cache.get(cache_key)
+    if cached and time.time() - cached["ts"] < _STATS_CACHE_TTL:
+        return cached["data"]
+
+    filters = []
+    params = {}
+    if user_id:
+        filters.append("user_id = :uid")
+        params["uid"] = user_id
     if account_id is not None:
-        base_query = base_query.filter(Email.account_id == account_id)
+        filters.append("account_id = :aid")
+        params["aid"] = account_id
 
-    total = base_query.with_entities(func.count(Email.id)).scalar()
-    total_size = base_query.with_entities(func.sum(Email.size_estimate)).scalar() or 0
-    unread = base_query.filter(Email.is_read == False).with_entities(func.count(Email.id)).scalar()
+    where = "WHERE " + " AND ".join(filters) if filters else ""
 
-    senders_query = db.query(Email.sender_email, func.count(Email.id).label("count"))
-    if user.get("id"):
-        senders_query = senders_query.filter(Email.user_id == user["id"])
-    if account_id is not None:
-        senders_query = senders_query.filter(Email.account_id == account_id)
-    top_senders = (
-        senders_query
-        .group_by(Email.sender_email)
-        .order_by(desc("count"))
-        .limit(30)
-        .all()
-    )
+    sql = text(f"""
+        WITH base AS (
+            SELECT sender_email, labels, is_read, size_estimate
+            FROM emails {where}
+        ),
+        totals AS (
+            SELECT count(*) as total, COALESCE(sum(size_estimate), 0) as total_size,
+                   count(*) FILTER (WHERE is_read = false) as unread
+            FROM base
+        ),
+        senders AS (
+            SELECT sender_email, count(*) as cnt
+            FROM base GROUP BY sender_email ORDER BY cnt DESC LIMIT 30
+        ),
+        label_counts AS (
+            SELECT label, count(*) as cnt
+            FROM (SELECT unnest(labels) as label FROM base) sub
+            GROUP BY label ORDER BY cnt DESC
+        ),
+        domains AS (
+            SELECT split_part(sender_email, '@', 2) as domain, count(*) as cnt
+            FROM base WHERE sender_email LIKE '%@%'
+            GROUP BY domain ORDER BY cnt DESC LIMIT 20
+        )
+        SELECT json_build_object(
+            'total_emails', (SELECT total FROM totals),
+            'total_size_bytes', (SELECT total_size FROM totals),
+            'unread', (SELECT unread FROM totals),
+            'top_senders', COALESCE((SELECT json_agg(json_build_object('email', sender_email, 'count', cnt)) FROM senders), '[]'::json),
+            'labels', COALESCE((SELECT json_agg(json_build_object('label', label, 'count', cnt)) FROM label_counts), '[]'::json),
+            'top_domains', COALESCE((SELECT json_agg(json_build_object('domain', domain, 'count', cnt)) FROM domains), '[]'::json)
+        )
+    """)
 
-    labels_base = db.query(func.unnest(Email.labels).label("label"))
-    if user.get("id"):
-        labels_base = labels_base.filter(Email.user_id == user["id"])
-    if account_id is not None:
-        labels_base = labels_base.filter(Email.account_id == account_id)
-    labels_query = labels_base.subquery()
-    label_counts = (
-        db.query(labels_query.c.label, func.count().label("count"))
-        .group_by(labels_query.c.label)
-        .order_by(desc("count"))
-        .all()
-    )
-
-    # Top domains
-    domain_expr = func.split_part(Email.sender_email, "@", 2)
-    domains_query = db.query(domain_expr.label("domain"), func.count(Email.id).label("count")).filter(Email.sender_email.ilike("%@%"))
-    if user.get("id"):
-        domains_query = domains_query.filter(Email.user_id == user["id"])
-    if account_id is not None:
-        domains_query = domains_query.filter(Email.account_id == account_id)
-    top_domains = (
-        domains_query
-        .group_by(domain_expr)
-        .order_by(desc("count"))
-        .limit(20)
-        .all()
-    )
-
-    return {
-        "total_emails": total,
-        "total_size_bytes": total_size,
-        "unread": unread,
-        "top_senders": [
-            {"email": s[0], "count": s[1]} for s in top_senders
-        ],
-        "labels": [
-            {"label": l[0], "count": l[1]} for l in label_counts
-        ],
-        "top_domains": [
-            {"domain": d[0], "count": d[1]} for d in top_domains
-        ],
-    }
+    result = db.execute(sql, params).scalar()
+    _stats_cache[cache_key] = {"data": result, "ts": time.time()}
+    return result
 
 
 @router.get("/emails/analysis/fuzzy-senders")

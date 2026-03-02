@@ -9,10 +9,13 @@ from services.imap_service import ImapService, encrypt_password, decrypt_passwor
 class IRedMailService:
 
     def _get_connection(self, config: dict):
+        import os
         password = decrypt_password(config["mariadb_password_encrypted"])
+        host = os.getenv("IREDMAIL_DB_HOST", config["mariadb_host"])
+        port = int(os.getenv("IREDMAIL_DB_PORT", config["mariadb_port"]))
         return pymysql.connect(
-            host=config["mariadb_host"],
-            port=config["mariadb_port"],
+            host=host,
+            port=port,
             user=config["mariadb_user"],
             password=password,
             database=config["mariadb_database"],

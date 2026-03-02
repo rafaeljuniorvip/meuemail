@@ -2300,6 +2300,11 @@ a.sender-count:hover {
     cursor: pointer;
 }
 
+.account-selector select option {
+    background: #2c2c2c;
+    color: #e0e0e0;
+}
+
 .account-selector select:focus {
     outline: none;
     border-color: var(--sidebar-active);

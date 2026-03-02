@@ -198,6 +198,7 @@ async function checkAuth() {
         updateAuthUI(data);
         if (data.authenticated) {
             loadSidebar();
+            loadAccountSelector();
             const syncRes = await fetch(`${API}/api/sync/status`);
             const syncData = await syncRes.json();
             if (syncData.running) startSyncPolling();
@@ -1286,6 +1287,16 @@ function selectModel(id) {
 }
 
 // ===== ACCOUNTS =====
+async function loadAccountSelector() {
+    try {
+        const res = await fetch(`${API}/api/accounts`);
+        const accounts = await res.json();
+        renderAccountSelector(accounts);
+    } catch (e) {
+        console.error('Failed to load account selector:', e);
+    }
+}
+
 async function loadAccounts() {
     try {
         const res = await fetch(`${API}/api/accounts`);
@@ -2177,16 +2188,55 @@ async function syncAllAccounts() {
 
 async function syncSingleAccount(id) {
     try {
+        // Capture email count before sync
+        const beforeRes = await fetch(`${API}/api/accounts/sync/all-status`);
+        const beforeAccs = await beforeRes.json();
+        const beforeAcc = beforeAccs.find(a => a.id === id);
+        const beforeCount = beforeAcc ? beforeAcc.email_count : 0;
+
         const res = await fetch(`${API}/api/accounts/${id}/sync`, { method: 'POST' });
         const data = await res.json();
         if (data.status === 'started') {
-            showToast('Sincronizacao iniciada', 'info');
+            showToast('Sincronizacao iniciada...', 'info');
+            // Poll until done, then show result
+            _pollSyncUntilDone(id, beforeCount);
         } else if (data.status === 'already_running') {
             showToast('Ja em andamento', 'info');
         }
-        // Restart polling with fast interval
         loadSyncStatus();
     } catch (e) {
         showToast('Erro: ' + e.message, 'error');
     }
+}
+
+function _pollSyncUntilDone(accountId, beforeCount, attempt = 0) {
+    const maxAttempts = 60;
+    const interval = attempt < 5 ? 1000 : 3000;
+
+    setTimeout(async () => {
+        try {
+            const r = await fetch(`${API}/api/accounts/sync/all-status`);
+            const accs = await r.json();
+            const acc = accs.find(a => a.id === accountId);
+            renderSyncTable(accs);
+
+            if (!acc || acc.sync_status !== 'syncing') {
+                const newCount = acc ? acc.email_count : 0;
+                const diff = newCount - beforeCount;
+                if (acc && acc.sync_status === 'error') {
+                    showToast(`Erro na sincronizacao: ${acc.sync_error || 'desconhecido'}`, 'error');
+                } else if (diff > 0) {
+                    showToast(`Sincronizacao concluida! ${diff} novos emails`, 'success');
+                } else {
+                    showToast('Sincronizacao concluida. Nenhum email novo.', 'success');
+                }
+                loadSidebar();
+                return;
+            }
+
+            if (attempt < maxAttempts) {
+                _pollSyncUntilDone(accountId, beforeCount, attempt + 1);
+            }
+        } catch (e) {}
+    }, interval);
 }

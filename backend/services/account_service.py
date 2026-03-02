@@ -195,11 +195,14 @@ class AccountService:
                     if not uids:
                         continue
 
-                    # Check existing
+                    # Check existing (filter by account_id to avoid UID collisions between IMAP accounts)
                     uid_strs = [f"imap_{uid.decode()}" for uid in uids]
                     existing = set(
                         row[0] for row in
-                        db.query(Email.gmail_id).filter(Email.gmail_id.in_(uid_strs)).all()
+                        db.query(Email.gmail_id).filter(
+                            Email.gmail_id.in_(uid_strs),
+                            Email.account_id == account_id,
+                        ).all()
                     )
                     new_uids = [uid for uid in uids if f"imap_{uid.decode()}" not in existing]
                     skipped = len(uids) - len(new_uids)

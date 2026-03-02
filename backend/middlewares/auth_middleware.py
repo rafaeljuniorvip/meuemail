@@ -12,6 +12,8 @@ PUBLIC_PATHS = {
     "/auth/logout",
     "/static",
     "/favicon.ico",
+    "/privacy",
+    "/terms",
 }
 
 
