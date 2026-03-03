@@ -11,7 +11,7 @@
 </head>
 <body>
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="app-sidebar">
         <div class="sidebar-header">
             <div class="sidebar-brand">
                 <h1>MeuEmail</h1>
@@ -134,8 +134,18 @@
         </div>
     </aside>
 
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
     <!-- Main Content -->
     <main class="main-content">
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" onclick="toggleSidebarCompact()" aria-label="Abrir menu" aria-controls="app-sidebar" aria-expanded="false" title="Abrir menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+
         <!-- Toast -->
         <div id="toast-container" class="toast-container"></div>
 
@@ -289,7 +299,7 @@
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="stats-secondary-grid">
                 <div class="card">
                     <h3 style="margin-bottom: 16px; font-size: 15px;">Top Remetentes</h3>
                     <ul class="top-senders-list" id="top-senders-list">

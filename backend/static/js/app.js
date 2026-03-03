@@ -23,8 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setupChatInput();
     restoreSidebarState();
     restoreSidebarCompact();
+    setupResponsiveSidebar();
     showSidebarLoading();
     window.addEventListener('hashchange', handleRoute);
+    window.addEventListener('resize', handleSidebarResize);
 });
 
 // ===== SESSION / USER =====
@@ -202,6 +204,7 @@ function setupNav() {
         item.addEventListener('click', () => {
             const page = item.dataset.page;
             navigate(`#/${page}`);
+            closeMobileSidebar();
         });
     });
 }
@@ -684,11 +687,20 @@ function restoreSidebarState() {
 }
 
 function toggleSidebarCompact() {
-    if (window.innerWidth <= 1024) return;
+    if (window.innerWidth <= 1024) {
+        document.body.classList.toggle('sidebar-mobile-open');
+        setSidebarA11yState();
+        return;
+    }
     const compact = document.body.classList.toggle('sidebar-compact');
     localStorage.setItem('sidebarCompact', compact ? '1' : '0');
-    const btn = document.getElementById('sidebar-toggle-btn');
-    if (btn) btn.setAttribute('aria-pressed', compact ? 'true' : 'false');
+    setSidebarA11yState();
+}
+
+function closeMobileSidebar() {
+    if (window.innerWidth > 1024) return;
+    document.body.classList.remove('sidebar-mobile-open');
+    setSidebarA11yState();
 }
 
 function restoreSidebarCompact() {
@@ -696,8 +708,56 @@ function restoreSidebarCompact() {
     if (compact && window.innerWidth > 1024) {
         document.body.classList.add('sidebar-compact');
     }
+    if (window.innerWidth <= 1024) {
+        document.body.classList.remove('sidebar-compact');
+        document.body.classList.remove('sidebar-mobile-open');
+    }
+    setSidebarA11yState();
+}
+
+function setupResponsiveSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+
+    sidebar.addEventListener('click', (event) => {
+        if (window.innerWidth > 1024) return;
+        const item = event.target.closest('.nav-item, .label-item, .sender-item');
+        if (item) closeMobileSidebar();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeMobileSidebar();
+        }
+    });
+}
+
+function handleSidebarResize() {
+    if (window.innerWidth > 1024) {
+        document.body.classList.remove('sidebar-mobile-open');
+        const compact = localStorage.getItem('sidebarCompact') === '1';
+        document.body.classList.toggle('sidebar-compact', compact);
+    } else {
+        document.body.classList.remove('sidebar-compact');
+    }
+    setSidebarA11yState();
+}
+
+function setSidebarA11yState() {
     const btn = document.getElementById('sidebar-toggle-btn');
-    if (btn) btn.setAttribute('aria-pressed', document.body.classList.contains('sidebar-compact') ? 'true' : 'false');
+    if (btn) {
+        const isPressed = window.innerWidth <= 1024
+            ? document.body.classList.contains('sidebar-mobile-open')
+            : document.body.classList.contains('sidebar-compact');
+        btn.setAttribute('aria-pressed', isPressed ? 'true' : 'false');
+    }
+
+    const mobileBtn = document.getElementById('mobile-menu-toggle');
+    if (mobileBtn) {
+        const isOpen = document.body.classList.contains('sidebar-mobile-open');
+        mobileBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        mobileBtn.setAttribute('aria-label', isOpen ? 'Fechar menu' : 'Abrir menu');
+    }
 }
 
 // ===== ANALYSIS =====
