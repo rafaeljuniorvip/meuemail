@@ -67,7 +67,7 @@
                 </svg>
                 <span>Análise</span>
             </div>
-            <div class="nav-item" data-page="agent">
+            <div class="nav-item" data-page="agent" id="nav-agent" style="display:none">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
@@ -85,7 +85,7 @@
                 <span>Sincronizacao</span>
             </div>
 
-            <div class="nav-item" data-page="settings/agent">
+            <div class="nav-item" data-page="settings/agent" id="nav-settings-agent" style="display:none">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="3"/>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
@@ -439,7 +439,7 @@
                             </svg>
                         </div>
                         <h3>Pergunte sobre seus emails</h3>
-                        <p>O agente usa IA para buscar nos seus ~130k emails sincronizados</p>
+                        <p>O agente usa IA para buscar nos seus emails sincronizados</p>
                         <div class="chat-suggestions">
                             <button class="chat-suggestion" onclick="useSuggestion(this)">Quais emails recebi da Amazon nos últimos 3 meses?</button>
                             <button class="chat-suggestion" onclick="useSuggestion(this)">Busque emails sobre nota fiscal de janeiro 2024</button>

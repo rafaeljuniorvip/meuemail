@@ -7,7 +7,7 @@ from services.search_service import search_service
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-DEFAULT_SYSTEM_PROMPT = """Você é um assistente de busca de emails inteligente. O usuário tem ~130 mil emails sincronizados no banco de dados.
+DEFAULT_SYSTEM_PROMPT = """Você é um assistente de busca de emails inteligente. O usuário tem emails sincronizados no banco de dados.
 
 Sua função:
 1. Entender a pergunta do usuário sobre seus emails

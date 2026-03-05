@@ -63,6 +63,17 @@ function updateUserUI(user) {
         const navUsers = document.getElementById('nav-users');
         if (navUsers) navUsers.style.display = '';
     }
+
+    // Show/hide AI menu items based on ai_enabled
+    const navAgent = document.getElementById('nav-agent');
+    const navSettingsAgent = document.getElementById('nav-settings-agent');
+    if (user.ai_enabled) {
+        if (navAgent) navAgent.style.display = '';
+        if (navSettingsAgent) navSettingsAgent.style.display = '';
+    } else {
+        if (navAgent) navAgent.style.display = 'none';
+        if (navSettingsAgent) navSettingsAgent.style.display = 'none';
+    }
 }
 
 async function logout() {
@@ -1222,7 +1233,7 @@ function autoResizeTextarea(el) {
 }
 
 // ===== SETTINGS / AI CONFIG =====
-const DEFAULT_SYSTEM_PROMPT = `Você é um assistente de busca de emails inteligente. O usuário tem ~130 mil emails sincronizados no banco de dados.
+const DEFAULT_SYSTEM_PROMPT = `Você é um assistente de busca de emails inteligente. O usuário tem emails sincronizados no banco de dados.
 
 Sua função:
 1. Entender a pergunta do usuário sobre seus emails
