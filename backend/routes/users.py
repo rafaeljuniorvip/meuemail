@@ -25,6 +25,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     role: Optional[str] = None
     is_active: Optional[bool] = None
+    ai_enabled: Optional[bool] = None
 
 
 @router.get("")
@@ -82,6 +83,9 @@ def update_user(
     if body.is_active is not None:
         user.is_active = body.is_active
 
+    if body.ai_enabled is not None:
+        user.ai_enabled = body.ai_enabled
+
     db.commit()
     db.refresh(user)
     return _user_to_dict(user)
@@ -115,6 +119,7 @@ def _user_to_dict(user: User) -> dict:
         "picture": user.picture,
         "role": user.role,
         "is_active": user.is_active,
+        "ai_enabled": user.ai_enabled,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "last_login": user.last_login.isoformat() if user.last_login else None,
     }

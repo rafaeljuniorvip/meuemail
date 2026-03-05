@@ -413,8 +413,9 @@ class AgentService:
         return {"error": f"Tool '{tool_name}' não encontrada"}
 
     async def chat(self, messages: list[dict], user_id: int = None) -> dict:
-        api_key = config_service.get_config("openrouter_api_key")
-        model = config_service.get_config("openrouter_model") or "anthropic/claude-sonnet-4"
+        user_config = config_service.get_user_ai_raw(user_id) if user_id else {"api_key": "", "model": "anthropic/claude-sonnet-4", "system_prompt": ""}
+        api_key = user_config["api_key"]
+        model = user_config["model"] or "anthropic/claude-sonnet-4"
 
         if not api_key:
             return {
@@ -423,7 +424,7 @@ class AgentService:
                 "model": None,
             }
 
-        system_prompt = config_service.get_config("openrouter_system_prompt") or DEFAULT_SYSTEM_PROMPT
+        system_prompt = user_config["system_prompt"] or DEFAULT_SYSTEM_PROMPT
         now = datetime.now()
         date_context = f"\n\nData e hora atual: {now.strftime('%d/%m/%Y %H:%M')} ({now.strftime('%A')})."
         date_context += f" Use esta data como referência para 'hoje', 'esta semana', 'este mês', etc."

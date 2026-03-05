@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from config.database import SessionLocal
 from models.app_config import AppConfig
+from models.user_ai_config import UserAiConfig
 
 # In-memory cache for OpenRouter models
 _models_cache = {"data": None, "fetched_at": 0}
@@ -52,6 +53,61 @@ class ConfigService:
                 "model": config.get("openrouter_model", "anthropic/claude-sonnet-4"),
                 "has_key": bool(api_key),
                 "system_prompt": config.get("openrouter_system_prompt", ""),
+            }
+        finally:
+            db.close()
+
+    def get_user_ai_config(self, user_id: int) -> dict:
+        db = self._get_db()
+        try:
+            row = db.query(UserAiConfig).filter(UserAiConfig.user_id == user_id).first()
+            if not row:
+                return {
+                    "api_key_masked": "",
+                    "model": "anthropic/claude-sonnet-4",
+                    "has_key": False,
+                    "system_prompt": "",
+                }
+            api_key = row.openrouter_api_key or ""
+            masked = ""
+            if api_key:
+                masked = api_key[:8] + "****" + api_key[-4:] if len(api_key) > 12 else "****"
+            return {
+                "api_key_masked": masked,
+                "model": row.openrouter_model or "anthropic/claude-sonnet-4",
+                "has_key": bool(api_key),
+                "system_prompt": row.system_prompt or "",
+            }
+        finally:
+            db.close()
+
+    def set_user_ai_config(self, user_id: int, api_key: str = None, model: str = None, system_prompt: str = None):
+        db = self._get_db()
+        try:
+            row = db.query(UserAiConfig).filter(UserAiConfig.user_id == user_id).first()
+            if not row:
+                row = UserAiConfig(user_id=user_id)
+                db.add(row)
+            if api_key is not None:
+                row.openrouter_api_key = api_key
+            if model is not None:
+                row.openrouter_model = model
+            if system_prompt is not None:
+                row.system_prompt = system_prompt
+            db.commit()
+        finally:
+            db.close()
+
+    def get_user_ai_raw(self, user_id: int) -> dict:
+        db = self._get_db()
+        try:
+            row = db.query(UserAiConfig).filter(UserAiConfig.user_id == user_id).first()
+            if not row:
+                return {"api_key": "", "model": "anthropic/claude-sonnet-4", "system_prompt": ""}
+            return {
+                "api_key": row.openrouter_api_key or "",
+                "model": row.openrouter_model or "anthropic/claude-sonnet-4",
+                "system_prompt": row.system_prompt or "",
             }
         finally:
             db.close()

@@ -59,6 +59,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "id": payload["sub"],
             "email": payload["email"],
             "role": payload["role"],
+            "ai_enabled": self._get_ai_enabled(payload["sub"]),
         }
 
         return await call_next(request)
@@ -93,6 +94,24 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "email": "api-key",
             "role": "user",
             "api_key_id": result["api_key_id"],
+            "ai_enabled": self._get_ai_enabled(result["user_id"]),
         }
 
         return await call_next(request)
+
+    @staticmethod
+    def _get_ai_enabled(user_id: int) -> bool:
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                row = db.execute(
+                    text("SELECT ai_enabled FROM users WHERE id = :uid"),
+                    {"uid": user_id},
+                ).fetchone()
+                return bool(row and row[0])
+            finally:
+                db.close()
+        except Exception:
+            return False

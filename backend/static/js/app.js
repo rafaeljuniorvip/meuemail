@@ -95,6 +95,15 @@ function handleRoute() {
     } else if (segments[0] === 'agent') {
         showPage('agent');
         document.querySelector('.nav-item[data-page="agent"]')?.classList.add('active');
+        const aiDisabled = document.getElementById('agent-ai-disabled');
+        const chatLayout = document.getElementById('agent-chat-layout');
+        if (state.currentUser && !state.currentUser.ai_enabled) {
+            if (aiDisabled) aiDisabled.style.display = '';
+            if (chatLayout) chatLayout.style.display = 'none';
+        } else {
+            if (aiDisabled) aiDisabled.style.display = 'none';
+            if (chatLayout) chatLayout.style.display = '';
+        }
     } else if (segments[0] === 'query' && segments[1]) {
         showPage('query-results');
         loadQueryResults(segments[1]);
@@ -1235,6 +1244,27 @@ Regras:
 - Use get_sender_summary para estatísticas sobre um remetente específico`;
 
 async function loadAiConfig() {
+    const disabledCard = document.getElementById('ai-disabled-card');
+    const configCard = document.getElementById('ai-config-card');
+    const modelsCard = configCard?.parentElement?.querySelector('.card:nth-child(4)');
+
+    // Check if AI is enabled for current user
+    if (state.currentUser && !state.currentUser.ai_enabled) {
+        if (disabledCard) disabledCard.style.display = '';
+        if (configCard) configCard.style.display = 'none';
+        // Hide models card and API keys card
+        document.querySelectorAll('#page-settings-agent .card').forEach((card, i) => {
+            if (i > 0) card.style.display = 'none';
+        });
+        return;
+    }
+
+    if (disabledCard) disabledCard.style.display = 'none';
+    if (configCard) configCard.style.display = '';
+    document.querySelectorAll('#page-settings-agent .card').forEach(card => {
+        card.style.display = '';
+    });
+
     try {
         const res = await fetch(`${API}/api/config/ai`);
         const data = await res.json();
@@ -2037,10 +2067,12 @@ function renderUsersTable(users) {
             <td><span class="user-role-badge ${u.role}">${u.role}</span></td>
             <td><span class="user-status-badge ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Ativo' : 'Inativo'}</span></td>
             <td><button class="btn btn-sm btn-outline" onclick="openUserApiKeysModal(${u.id}, '${escapeHtml(u.email)}')">Gerenciar</button></td>
+            <td><span class="user-status-badge ${u.ai_enabled ? 'active' : 'inactive'}">${u.ai_enabled ? 'Habilitado' : 'Desabilitado'}</span></td>
             <td>${lastLogin}</td>
             <td>
                 <button class="btn btn-sm btn-outline" onclick="toggleUserActive(${u.id}, ${!u.is_active})">${u.is_active ? 'Desativar' : 'Ativar'}</button>
                 <button class="btn btn-sm btn-outline" onclick="toggleUserRole(${u.id}, '${u.role === 'admin' ? 'user' : 'admin'}')">${u.role === 'admin' ? 'Tornar User' : 'Tornar Admin'}</button>
+                <button class="btn btn-sm btn-outline" onclick="toggleUserAiEnabled(${u.id}, ${!u.ai_enabled})">${u.ai_enabled ? 'Desabilitar IA' : 'Habilitar IA'}</button>
                 <button class="btn btn-sm btn-danger" onclick="removeUser(${u.id}, '${escapeHtml(u.email)}')">Remover</button>
             </td>
         </tr>`;
@@ -2108,6 +2140,21 @@ async function toggleUserRole(userId, role) {
         });
         if (!res.ok) throw new Error('Erro ao atualizar');
         showToast(`Role alterada para ${role}`, 'success');
+        loadUsers();
+    } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+async function toggleUserAiEnabled(userId, aiEnabled) {
+    try {
+        const res = await fetch(`${API}/api/users/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ai_enabled: aiEnabled }),
+        });
+        if (!res.ok) throw new Error('Erro ao atualizar');
+        showToast(aiEnabled ? 'IA habilitada para o usuario' : 'IA desabilitada para o usuario', 'success');
         loadUsers();
     } catch (e) {
         showToast('Erro: ' + e.message, 'error');

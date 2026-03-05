@@ -21,6 +21,8 @@ async def agent_query(body: QueryRequest, request: Request):
     user = getattr(request.state, "user", None)
     if not user:
         raise HTTPException(status_code=401, detail="Não autenticado")
+    if not user.get("ai_enabled"):
+        raise HTTPException(status_code=403, detail="IA não habilitada para esta conta")
 
     user_id = user.get("id")
     messages = [{"role": "user", "content": body.question}]

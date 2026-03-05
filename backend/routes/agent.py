@@ -36,18 +36,30 @@ class SessionSave(BaseModel):
 @router.post("/chat")
 async def chat(request: ChatRequest, http_request: Request):
     user = get_current_user(http_request)
+    if not user.get("ai_enabled"):
+        raise HTTPException(status_code=403, detail="IA não habilitada para sua conta. Contate o administrador.")
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
     result = await agent_service.chat(messages, user_id=user.get("id"))
     return result
 
 
 @router.get("/health")
-def health():
-    config = config_service.get_all_ai_config()
+def health(request: Request):
+    user = get_current_user(request)
+    ai_enabled = user.get("ai_enabled", False)
+    if not ai_enabled:
+        return {
+            "status": "ai_disabled",
+            "model": None,
+            "has_key": False,
+            "ai_enabled": False,
+        }
+    config = config_service.get_user_ai_config(user.get("id"))
     return {
         "status": "ok" if config["has_key"] else "no_api_key",
         "model": config["model"],
         "has_key": config["has_key"],
+        "ai_enabled": True,
     }
 
 

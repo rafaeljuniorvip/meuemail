@@ -31,6 +31,7 @@ import models.chat_session  # noqa: F401 - register model
 import models.user  # noqa: F401 - register model
 import models.iredmail_config  # noqa: F401 - register model
 import models.api_key  # noqa: F401 - register model
+import models.user_ai_config  # noqa: F401 - register model
 
 SYNC_INTERVAL_MINUTES = 10
 
