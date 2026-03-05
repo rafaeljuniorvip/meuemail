@@ -420,6 +420,26 @@ class AccountService:
             sync_progress.pop(account_id, None)
             db.close()
 
+    def sync_user_if_stale(self, user_id: int, max_age_seconds: int = 60):
+        """Sync all accounts of a user if last sync was more than max_age_seconds ago."""
+        db = SessionLocal()
+        try:
+            accounts = db.query(Account).filter(
+                Account.user_id == user_id,
+                Account.is_active == True,
+                Account.sync_status != "syncing",
+            ).all()
+
+            now = datetime.now(timezone.utc)
+            for account in accounts:
+                if account.last_sync_at:
+                    age = (now - account.last_sync_at).total_seconds()
+                    if age < max_age_seconds:
+                        continue
+                self.start_sync(account.id)
+        finally:
+            db.close()
+
     def start_sync(self, account_id: int):
         """Start sync in background thread, dispatching to gmail or imap."""
         db = SessionLocal()

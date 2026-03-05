@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel, Field
 
 from services.agent_service import agent_service
+from services.account_service import account_service
 
 router = APIRouter(prefix="/api/v1", tags=["external-api"])
 
@@ -25,6 +26,10 @@ async def agent_query(body: QueryRequest, request: Request):
         raise HTTPException(status_code=403, detail="IA não habilitada para esta conta")
 
     user_id = user.get("id")
+
+    # Sync emails if last sync was more than 60 seconds ago
+    account_service.sync_user_if_stale(user_id, max_age_seconds=60)
+
     messages = [{"role": "user", "content": body.question}]
     result = await agent_service.chat(messages, user_id=user_id)
 

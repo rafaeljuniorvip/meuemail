@@ -61,6 +61,10 @@ def create_account(body: AccountCreate, request: Request, db: Session = Depends(
     data = body.model_dump()
     data["user_id"] = user.get("id")
     result = account_service.create_account(db, data)
+
+    # Auto-sync after account creation
+    account_service.start_sync(result["id"])
+
     return result
 
 

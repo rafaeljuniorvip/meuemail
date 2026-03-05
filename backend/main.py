@@ -44,16 +44,29 @@ app.add_middleware(AuthMiddleware)
 
 
 def _auto_sync_loop():
+    from services.account_service import account_service
+    from config.database import SessionLocal
     while True:
         time.sleep(SYNC_INTERVAL_MINUTES * 60)
-        if not gmail_service.is_authenticated():
-            continue
-        if sync_state["running"]:
-            continue
-        print(f"[Auto-sync] Iniciando sincronização automática...")
-        sync_state.update({"running": True, "total": 0, "synced": 0, "status": "fetching_ids"})
-        _sync_worker()
-        print(f"[Auto-sync] Concluído.")
+        try:
+            db = SessionLocal()
+            from models.account import Account
+            accounts = db.query(Account).filter(
+                Account.is_active == True,
+                Account.sync_status != "syncing",
+            ).all()
+            account_ids = [a.id for a in accounts]
+            db.close()
+
+            if not account_ids:
+                continue
+
+            print(f"[Auto-sync] Sincronizando {len(account_ids)} conta(s)...")
+            for aid in account_ids:
+                account_service.start_sync(aid)
+            print(f"[Auto-sync] Sync iniciado para contas: {account_ids}")
+        except Exception as e:
+            print(f"[Auto-sync] Erro: {e}")
 
 
 @app.on_event("startup")

@@ -164,6 +164,7 @@ async def gmail_callback(
         if not existing.user_id:
             existing.user_id = user_id
         db.commit()
+        account_id = existing.id
         print(f"[Gmail Connect] Updated account for {gmail_email} (user_id={user_id})")
     else:
         account = Account(
@@ -177,7 +178,14 @@ async def gmail_callback(
         )
         db.add(account)
         db.commit()
+        db.refresh(account)
+        account_id = account.id
         print(f"[Gmail Connect] Created account for {gmail_email} (user_id={user_id})")
+
+    # Auto-sync after connect
+    from services.account_service import account_service
+    account_service.start_sync(account_id)
+    print(f"[Gmail Connect] Auto-sync started for account {account_id}")
 
     return RedirectResponse(url="/app#/sync")
 
