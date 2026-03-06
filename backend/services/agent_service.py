@@ -284,6 +284,21 @@ DICAS:
     {
         "type": "function",
         "function": {
+            "name": "find_contact_email",
+            "description": "Encontra o endereço de email de um contato buscando pelo nome ou email parcial. Pesquisa tanto em remetentes (emails recebidos) quanto em destinatários (emails enviados). Retorna candidatos rankeados por frequência de interação. Use quando o usuário perguntar 'qual o email do fulano?', 'email de tal pessoa', etc.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Nome, email parcial ou qualquer termo para buscar o contato (ex: 'João', 'silva@', 'empresa')"},
+                    "limit": {"type": "integer", "description": "Máximo de candidatos a retornar (default: 10)", "default": 10},
+                },
+                "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "save_query",
             "description": "Salva uma consulta SQL para o usuário visualizar em página dedicada com paginação. Retorna um hash que pode ser usado em link [texto](#/query/{hash}). Use SEMPRE que fizer análises com dados tabelares, rankings, listagens ou estatísticas que o usuário pode querer explorar.",
             "parameters": {
@@ -376,6 +391,7 @@ class AgentService:
             "get_sender_summary": search_service.get_sender_summary,
             "get_top_senders": search_service.get_top_senders,
             "get_email_stats": search_service.get_email_stats,
+            "find_contact_email": search_service.find_contact_email,
         }
 
         # Tools without user_id filtering

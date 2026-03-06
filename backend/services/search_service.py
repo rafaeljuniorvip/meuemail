@@ -467,4 +467,91 @@ class SearchService:
             db.close()
 
 
+    def find_contact_email(self, name: str, limit: int = 10, user_id: int = None) -> list[dict]:
+        """Find a contact's email by searching sender names/emails and recipients."""
+        db = self._get_db()
+        try:
+            params = {"pattern": f"%{name}%", "limit": limit}
+            user_clause = ""
+            if user_id is not None:
+                user_clause = "AND user_id = :user_id"
+                params["user_id"] = user_id
+
+            sql = text(f"""
+                WITH contacts AS (
+                    -- From received emails (sender)
+                    SELECT
+                        sender_email AS email,
+                        sender AS name,
+                        COUNT(*) AS freq,
+                        MAX(date) AS last_seen,
+                        'remetente' AS source
+                    FROM emails
+                    WHERE (sender ILIKE :pattern OR sender_email ILIKE :pattern)
+                      AND sender_email IS NOT NULL AND sender_email != ''
+                      {user_clause}
+                    GROUP BY sender_email, sender
+
+                    UNION ALL
+
+                    -- From sent emails (recipients)
+                    SELECT
+                        LOWER(TRIM(
+                            CASE
+                                WHEN r.addr LIKE '%<%>%'
+                                THEN SUBSTRING(r.addr FROM '<([^>]+)>')
+                                ELSE r.addr
+                            END
+                        )) AS email,
+                        TRIM(
+                            CASE
+                                WHEN r.addr LIKE '%<%>%'
+                                THEN SUBSTRING(r.addr FROM '^(.+)<')
+                                ELSE ''
+                            END
+                        ) AS name,
+                        COUNT(*) AS freq,
+                        MAX(e.date) AS last_seen,
+                        'destinatario' AS source
+                    FROM emails e,
+                         LATERAL unnest(string_to_array(e.recipients, ',')) AS r(addr)
+                    WHERE (r.addr ILIKE :pattern)
+                      AND e.recipients IS NOT NULL AND e.recipients != ''
+                      {user_clause.replace('user_id', 'e.user_id') if user_id else ''}
+                    GROUP BY 1, 2
+                ),
+                ranked AS (
+                    SELECT
+                        email,
+                        MAX(name) FILTER (WHERE name != '' AND name IS NOT NULL) AS name,
+                        SUM(freq) AS total_interactions,
+                        MAX(last_seen) AS last_interaction,
+                        array_agg(DISTINCT source) AS sources
+                    FROM contacts
+                    WHERE email != '' AND email IS NOT NULL
+                      AND email NOT LIKE '%@.%'
+                      AND email LIKE '%@%.%'
+                    GROUP BY email
+                    ORDER BY SUM(freq) DESC
+                    LIMIT :limit
+                )
+                SELECT email, COALESCE(name, '') AS name, total_interactions, last_interaction, sources
+                FROM ranked
+                ORDER BY total_interactions DESC
+            """)
+            rows = db.execute(sql, params).fetchall()
+            return [
+                {
+                    "email": row[0],
+                    "name": row[1].strip().strip('"').strip("'").strip() if row[1] else "",
+                    "total_interactions": row[2],
+                    "last_interaction": str(row[3]) if row[3] else None,
+                    "sources": list(row[4]) if row[4] else [],
+                }
+                for row in rows
+            ]
+        finally:
+            db.close()
+
+
 search_service = SearchService()
